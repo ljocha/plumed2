@@ -39,13 +39,29 @@ public:
     }
 
     /**
+     * OUTPUT = M . INPUT
+     */
+    template<class I, class O>
+    void right_matrix_multiply(const I& INPUT, O& OUTPUT) const {
+        fill(OUTPUT._data.begin(), OUTPUT._data.end(), 0);
+        int input_width = INPUT.width;
+        for (int i = 0; i < height; i++) {
+            for (int k = 0; k < width; k++) {
+                for (int j = 0; j < input_width; j++) {
+                    OUTPUT._data[i * input_width + j] += INPUT._data[k * input_width + j] * _data[i * width + k];
+                }
+            }
+        }
+    }
+
+    /**
      * output += input . M
      */
     void add_left_vector_multiply(const L_VEC& input, R_VEC& output) const {
         for (int i = 0; i < height; i++) {
             for (int j = 0; j < width; j++) {
                 int index = i * width + j;
-                output[i] += input[i] * _data[index];
+                output[j] += input[i] * _data[index];
             }
         }
     }
@@ -58,23 +74,7 @@ public:
         for (int i = 0; i < height; i++) {
             for (int j = 0; j < width; j++) {
                 int index = i * width + j;
-                output[i] += input[i] * _data[index];
-            }
-        }
-    }
-
-    /**
-     * OUTPUT = M . INPUT
-     */
-    template<class I, class O>
-    void right_matrix_multiply(const I& INPUT, O& OUTPUT) const {
-        fill(OUTPUT._data.begin(), OUTPUT._data.end(), 0);
-        int input_width = INPUT.width;
-        for (int i = 0; i < height; i++) {
-            for (int k = 0; k < width; k++) {
-                for (int j = 0; j < input_width; j++) {
-                    OUTPUT._data[i * input_width + j] += INPUT._data[k * input_width + j] * _data[i * width + k];
-                }
+                output[j] += input[i] * _data[index];
             }
         }
     }

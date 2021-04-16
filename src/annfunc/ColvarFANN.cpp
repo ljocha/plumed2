@@ -19,6 +19,23 @@ namespace colvar {
 
 //+PLUMEDOC COLVAR ColvarFANN
 /*
+Fast Artificial Neural Network colvar
+
+Computes the function of two layer perceptron with positions of atoms as input and one output.
+Optionally can rescale the input by a specified constant.
+
+\plumedfile
+FANN ...
+LABEL=ann_cv1
+ATOMS=1,4,12
+RESCALE=0.100041
+WEIGHTS_INPUT_HIDDEN=1.35345,2.353535,-3.242425,4.23424,5.25425,6.252343
+WEIGHTS_HIDDEN_OUTPUT=0.125232,0.224323
+BIASES_HIDDEN=-0.005190,0.001307
+BIASES_OUTPUT=0.213432
+... FANN
+\endplumedfile
+
 */
 //+ENDPLUMEDOC
 
@@ -110,25 +127,13 @@ void ColvarFANN::calculate() {
     }
 
     setValue(net.forth_and_back_propagation());
-    net.print_params(std::cout);
-    net.print_output(std::cout);
 
     for (unsigned int i = 0; i < positions.size(); i++) {
         setAtomsDerivatives(i, { derivatives[3 * i], derivatives[3 * i + 1], derivatives[3 * i + 2]});
     }
+
+    /* set box derivatives */
     apply();
-// #ifdef DEBUG_2
-//         net.print_output();
-//         net.print_gradients();
-// #endif
-// #ifdef DEBUG_3
-//         printf("derivatives = ");
-//         for (int jj = 0; jj < input_size; jj ++) {
-//         printf("%f ", component -> getDerivative(jj));
-//         }
-//         printf("\n");
-// #endif
-    // }
 }
 
 } // namespace colvar

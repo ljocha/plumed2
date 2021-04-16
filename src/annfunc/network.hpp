@@ -64,12 +64,6 @@ public:
         hidden_layer = b_hidden;
         w_input_hidden.add_right_vector_multiply(input_layer, hidden_layer);
 
-        std::cout << "hidden layer - inner potential: ";
-        for (int i = 0; i < hidden_size; i++) {
-            std::cout << hidden_layer[i] << " ";
-        }
-        std::cout << std::endl;
-
         /* compute
         *  - activations in the hidden layer
         *  - the gradient with respect to output value in the hidden layer
@@ -97,8 +91,8 @@ public:
     }
 
     void print_params(std::ostream& out) {
-        // out << "weights0:\n";
-        // w_input_hidden.print(out);
+        out << "weights0:\n";
+        w_input_hidden.print(out);
         out << "weights1:\n";
         for (int i = 0; i < hidden_size; i++) {
             out << w_hidden_output[i] << " ";
@@ -110,14 +104,6 @@ public:
         out << "\nbiases1:\n";
         out << b_output << " ";
         out << "\n";
-    }
-
-    void print_gradients(std::ostream& out) {
-        // out << "input gradient: ";
-        // grad_input.print(out);
-        // out << "hidden gradient: ";
-        // grad_hidden.print(out);
-        // out << "\n";
     }
 
     void print_output(std::ostream& out) {
