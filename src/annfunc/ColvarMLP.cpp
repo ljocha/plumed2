@@ -59,7 +59,7 @@ private:
 public:
     static void registerKeywords(Keywords& keys);
     ColvarMLP(const ActionOptions& ao);
-    void calculate();
+    virtual void calculate();
     template <typename Scalar>
     void calculate_by_precision(Network<Scalar>& net);
 };
@@ -155,9 +155,9 @@ ColvarMLP::ColvarMLP(const ActionOptions& ao)
     , d_net(use_double ? parseNetwork<double>() : nullptr)
     , f_net(use_double ? nullptr : parseNetwork<float>())
 {
+    addValueWithDerivatives();
     requestAtoms(atoms);
 
-    addValueWithDerivatives();
     checkRead();
 
     getPntrToValue()->setNotPeriodic();
@@ -182,12 +182,10 @@ void ColvarMLP::calculate_by_precision(Network<Scalar>& net) {
     vector<Scalar>& output = net.compute_output();
     setValue(output[0]);
 
-    vector<Scalar>& derivativess = net.compute_gradient(0);
-
-    std::cout << "positions" << positions.size() << std::endl;
+    vector<Scalar>& derivatives = net.compute_gradient(0);
 
     for (unsigned int i = 0; i < positions.size(); i++) {
-        setAtomsDerivatives(i, { derivativess[3 * i], derivativess[3 * i + 1], derivativess[3 * i + 2]});
+        setAtomsDerivatives(i, { derivatives[3 * i], derivatives[3 * i + 1], derivatives[3 * i + 2]});
     }
 
     /* set box derivatives */
