@@ -4,16 +4,17 @@
 #include <cstdio>
 #include <ostream>
 
+template <typename Scalar>
 class matrix {
-    using R_VEC = std::vector<double>;
-    using L_VEC = std::vector<double>;
-    using DATA = std::vector<double>;
+    using R_VEC = std::vector<Scalar>;
+    using L_VEC = std::vector<Scalar>;
+    using DATA = std::vector<Scalar>;
 
     int height, width;
     DATA _data;
 
 public:
-    matrix(int height, int width)
+    explicit matrix(int height = 1, int width = 1)
     : height(height)
     , width(width)
     , _data(DATA(height * width))
@@ -79,6 +80,10 @@ public:
         }
     }
 
+    void copy_row(int row, R_VEC& output) const {
+        copy(_data.begin() + row * width, _data.begin() + (row + 1) * width, output.begin());
+    }
+
     /**
      * row(output) = row(M) % input (where % is pointwise product)
      */
@@ -88,11 +93,11 @@ public:
         }
     }
 
-    double& get(int i, int j) {
+    Scalar& get(int i, int j) {
         return _data[i * width + j];
     }
     
-    double get(int i, int j) const {
+    Scalar get(int i, int j) const {
         return _data[i * width + j];
     }
 
