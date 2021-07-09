@@ -182,10 +182,12 @@ void ColvarMLP::calculate_by_precision(Network<Scalar>& net) {
     vector<Scalar>& output = net.compute_output();
     setValue(output[0]);
 
-    vector<Scalar>& derivatives = net.compute_gradient(0);
+    vector<Scalar>& derivativess = net.compute_gradient(0);
+
+    std::cout << "positions" << positions.size() << std::endl;
 
     for (unsigned int i = 0; i < positions.size(); i++) {
-        setAtomsDerivatives(i, { derivatives[3 * i], derivatives[3 * i + 1], derivatives[3 * i + 2]});
+        setAtomsDerivatives(i, { derivativess[3 * i], derivativess[3 * i + 1], derivativess[3 * i + 2]});
     }
 
     /* set box derivatives */
