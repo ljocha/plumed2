@@ -189,7 +189,7 @@ void ColvarMLP::calculate_by_precision(Network<Scalar>& net) {
     }
 
     /* set box derivatives */
-    apply();
+    setBoxDerivativesNoPbc();
 }
 
 } // namespace colvar
