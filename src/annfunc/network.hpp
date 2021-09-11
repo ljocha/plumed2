@@ -115,7 +115,7 @@ public:
     static Scalar tanh(Scalar v) {return std::tanh(v); }
     static Scalar d_tanh(Scalar fv) { return 1 - fv*fv; }
 
-    static Scalar sigmoid(Scalar v) { return 1/(1 + exp(v)); }
+    static Scalar sigmoid(Scalar v) { return 1/(1 + exp(-v)); }
     static Scalar d_sigmoid(Scalar fv) { return (1 - fv) * fv; }
 
     static Scalar linear(Scalar v) { return v; }
