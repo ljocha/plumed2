@@ -140,7 +140,7 @@ std::unique_ptr<Network<Scalar>> ColvarMLP::parseNetwork() {
     }
 
     for (int l = 0; l < num_layers-1; ++l) {
-        if(!parseNumberedVector("BIASES", l, buffer)) error("Not enough biase vectors provided.");
+        if(!parseNumberedVector("BIASES", l, buffer)) error("Not enough bias vectors provided.");
         if (static_cast<int>(buffer.size()) != layer_sizes[l+1]) error("Invalid number of biases in layer " + to_string(l+1) + ".");
         net->set_biases(l+1, buffer);
     }
