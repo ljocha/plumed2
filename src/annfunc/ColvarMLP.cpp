@@ -132,7 +132,7 @@ std::unique_ptr<Network<Scalar>> ColvarMLP::parseNetwork() {
 
     std::unique_ptr<Network<Scalar>> net(new Network<Scalar>(layer_sizes, fns, d_fns, rescale_factor));
 
-    std::vector<double> buffer;
+    std::vector<Scalar> buffer;
     for (int l = 0; l < num_layers-1; ++l) {
         if(!parseNumberedVector("WEIGHTS", l, buffer)) error("Not enough weight matrices provided.");
         if (static_cast<int>(buffer.size()) != layer_sizes[l] * layer_sizes[l+1]) error("Invalid number of weights between layers " + to_string(l) + " and " + to_string(l+1) + ".");

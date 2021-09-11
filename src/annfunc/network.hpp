@@ -1,9 +1,13 @@
 #include <cmath>
-#include "./matrix.hpp"
+// #include "./matrix.hpp"
+#include "../tools/Matrix.h"
+
+namespace PLMD {
 
 template <typename Scalar>
 class Network
 {
+using matrix = PLMD::Matrix<Scalar>;
 using vector = std::vector<Scalar>;
 using fn_t = Scalar (*)(Scalar);
 
@@ -13,7 +17,7 @@ private:
 
     std::vector<int> layer_sizes;
 
-    std::vector<matrix<Scalar>> weights;
+    std::vector<matrix> weights;
     std::vector<vector> biases;
     
     std::vector<vector> layers;
@@ -27,7 +31,7 @@ public:
     : num_layers(layer_sizes.size())
     , rescale_factor(rescale_factor)
     , layer_sizes(std::move(layer_sizes))
-    , weights(std::vector<matrix<Scalar>>(num_layers - 1))
+    , weights(std::vector<matrix>(num_layers - 1))
     , biases(std::vector<vector>(num_layers))
     , layers(std::vector<vector>(num_layers))
     , gradients(std::vector<vector>(num_layers-1))
@@ -35,7 +39,7 @@ public:
     , d_activations(std::move(d_activations))
     {
         for (int i = 0; i < num_layers - 1; ++i) {
-            weights[i] = matrix<Scalar>(this->layer_sizes[i+1], this->layer_sizes[i]);
+            weights[i] = matrix(this->layer_sizes[i+1], this->layer_sizes[i]);
         }
 
         for (int i = 0; i < num_layers; ++i) {
@@ -51,11 +55,11 @@ public:
         }
     }
 
-    void set_weights(int layer_index, const std::vector<double>& w) {
-        std::copy(w.begin(), w.end(), weights[layer_index].data().begin());
+    void set_weights(int layer_index, const std::vector<Scalar>& w) {
+        weights[layer_index].setFromVector(w);
     }
 
-    void set_biases(int layer_index, const std::vector<double>& b) {
+    void set_biases(int layer_index, const std::vector<Scalar>& b) {
         std::copy(b.begin(), b.end(), biases[layer_index].begin());
     }
 
@@ -67,8 +71,9 @@ public:
 
         /* compute innier potentials in the hidden layer */
         for (int l = 1; l < num_layers; ++l) {
-            std::copy(biases[l].begin(), biases[l].end(), layers[l].begin());
-            weights[l-1].add_right_vector_multiply(layers[l-1], layers[l]);
+            mult(weights[l-1], layers[l-1], layers[l]);
+            for (uint i = 0; i < biases[l].size(); ++i) layers[l][i] += biases[l][i];
+
             /* compute activations in the hidden layer */
             for (size_t i = 0; i < layers[l].size(); i++) {
                 layers[l][i] = activations[l](layers[l][i]);
@@ -79,15 +84,17 @@ public:
     }
 
     vector& compute_gradient(int output_index) {
-        weights.back().copy_row(output_index, gradients.back());
+        for (uint j = 0; j < gradients.back().size(); ++j) {
+            gradients.back()[j] = weights.back()(output_index, j);
+        }
         
         for (size_t i = 0; i < gradients.back().size(); ++i) {
             gradients.back()[i] *= d_activations[num_layers-1](layers[num_layers-1][output_index]) * d_activations[num_layers-2](layers[num_layers-2][i]);
         }
 
         for (int l = num_layers - 3; l >= 0; --l) {
-            weights[l].left_vector_multiply(gradients[l+1], gradients[l]);
-            
+            mult(gradients[l+1], weights[l], gradients[l]);
+
             for (size_t i = 0; i < gradients[l].size(); ++i) {
                 gradients[l][i] *= d_activations[l](layers[l][i]);
             }
@@ -117,3 +124,5 @@ public:
     static Scalar relu(Scalar v) { return v < 0 ? 0 : v; }
     static Scalar d_relu(Scalar fv) { return fv <= 0 ? 0 : 1; }
 };
+
+} // namespace PLMD
