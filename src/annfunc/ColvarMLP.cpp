@@ -77,6 +77,8 @@ void ColvarMLP::registerKeywords( Keywords& keys ) {
     keys.add("compulsory", "SIZES", "array of sizes of individual layers, S_0, ..., S_n (S_0 should equal to three times the number of atoms)");
     keys.add("numbered", "WEIGHTS", "array of flattened weight matrices W_1, ..., W_N; matrix W_L of size S_{L-1} x S_L connects layers L-1 and L");
     keys.add("numbered", "BIASES", "array of bias vectors B_1, ..., B_N; vector B_L is added to the inner potential of layer L");
+
+    keys.addOutputComponent("node", "default", "components of MLP outputs");
 }
 
 std::vector<AtomNumber> ColvarMLP::parseAtoms() {
@@ -155,7 +157,13 @@ ColvarMLP::ColvarMLP(const ActionOptions& ao)
     , dNet(useDouble ? parseNetwork<double>() : nullptr)
     , fNet(useDouble ? nullptr : parseNetwork<float>())
 {
-    addValueWithDerivatives();
+    int outputSize = useDouble ? dNet->outputSize() : fNet->outputSize();
+
+    for (int i = 0; i < outputSize; ++i) {
+        addComponentWithDerivatives("node-" + to_string(i));
+    }
+
+    // addValueWithDerivatives();
     requestAtoms(atoms);
 
     checkRead();
@@ -179,13 +187,18 @@ void ColvarMLP::calculateByPrecision(Network<Scalar>& net) {
         input[3 * i + 2] = positions[i][2];
     }
 
-    vector<Scalar>& output = net.computeOutput();
-    setValue(output[0]);
+    const vector<Scalar>& output = net.computeOutput();
+    for (uint i = 0; i < output.size(); ++i) {
+        std::string compName = "node-" + to_string(i);
+        Value* comp = getPntrToComponent(compName);
+     
+        comp->set(output[i]);
+        const vector<Scalar>& derivatives = net.computeGradient(i);
 
-    vector<Scalar>& derivatives = net.computeGradient(0);
-
-    for (unsigned int i = 0; i < positions.size(); i++) {
-        setAtomsDerivatives(i, { derivatives[3 * i], derivatives[3 * i + 1], derivatives[3 * i + 2]});
+        for (unsigned int i = 0; i < positions.size(); i++) {
+            setAtomsDerivatives(comp, i, { derivatives[3 * i], derivatives[3 * i + 1], derivatives[3 * i + 2]});
+            // comp->setDerivative(i, { derivatives[3 * i], derivatives[3 * i + 1], derivatives[3 * i + 2]});
+        }
     }
 
     setBoxDerivativesNoPbc();
