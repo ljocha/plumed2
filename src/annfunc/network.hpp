@@ -63,7 +63,11 @@ public:
         std::copy(b.begin(), b.end(), biases[layerIndex].begin());
     }
 
-    vector& computeOutput() {
+    int outputSize() const {
+        return layers.back().size();
+    }
+
+    const vector& computeOutput() {
         /* rescale the input */
         for (Scalar& v : layers[0] ) {
             v *= rescaleFactor;
@@ -83,7 +87,7 @@ public:
         return layers.back();
     }
 
-    vector& computeGradient(int outputIndex) {
+    const vector& computeGradient(int outputIndex) {
         for (uint j = 0; j < gradients.back().size(); ++j) {
             gradients.back()[j] = weights.back()(outputIndex, j);
         }
