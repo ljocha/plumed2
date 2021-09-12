@@ -46,22 +46,22 @@ BIASES1=0.213432
 class ColvarMLP : public Colvar
 {
 private:
-    bool use_double;
+    bool useDouble;
     std::vector<AtomNumber> atoms;
-    std::unique_ptr<Network<double>> d_net;
-    std::unique_ptr<Network<float>> f_net;
+    std::unique_ptr<Network<double>> dNet;
+    std::unique_ptr<Network<float>> fNet;
 
     std::vector<AtomNumber> parseAtoms();
-    bool readFlag(std::string flag_name);
+    bool readFlag(std::string flagName);
     template <typename Scalar>
     std::unique_ptr<Network<Scalar>> parseNetwork();
 
+    template <typename Scalar>
+    void calculateByPrecision(Network<Scalar>& net);
 public:
     static void registerKeywords(Keywords& keys);
     ColvarMLP(const ActionOptions& ao);
     virtual void calculate();
-    template <typename Scalar>
-    void calculate_by_precision(Network<Scalar>& net);
 };
 
 PLUMED_REGISTER_ACTION(ColvarMLP,"CMLP")
@@ -85,7 +85,7 @@ std::vector<AtomNumber> ColvarMLP::parseAtoms() {
     return atoms;
 }
 
-bool ColvarMLP::readFlag(std::string flag_name) {
+bool ColvarMLP::readFlag(std::string flagName) {
     bool flag = false;
     parseFlag("DOUBLE_PREC", flag);
     return flag;
@@ -94,18 +94,18 @@ bool ColvarMLP::readFlag(std::string flag_name) {
 template <typename Scalar>
 std::unique_ptr<Network<Scalar>> ColvarMLP::parseNetwork() {
     /* sizes of all the layers including the input layer */
-    std::vector<int> layer_sizes;
-    parseVector("SIZES", layer_sizes);
+    std::vector<int> layerSizes;
+    parseVector("SIZES", layerSizes);
     
-    int num_layers = layer_sizes.size();
+    int numLayers = layerSizes.size();
 
-    std::vector<std::string> activation_names;
+    std::vector<std::string> activationNames;
     std::vector<Scalar (*)(Scalar)> fns{Network<Scalar>::linear};
     std::vector<Scalar (*)(Scalar)> d_fns{Network<Scalar>::d_linear};
 
     /* activations in all the layers except for the input layer */
-    parseVector("ACTIVATIONS", activation_names);
-    for (auto& name : activation_names) {
+    parseVector("ACTIVATIONS", activationNames);
+    for (auto& name : activationNames) {
         if (name == "TANH") {
             fns.push_back(Network<Scalar>::tanh);
             d_fns.push_back(Network<Scalar>::d_tanh);
@@ -124,25 +124,25 @@ std::unique_ptr<Network<Scalar>> ColvarMLP::parseNetwork() {
     }
     
 
-    if (static_cast<int>(activation_names.size()) != num_layers - 1) error("Wrong number of activation functions given.");
+    if (static_cast<int>(activationNames.size()) != numLayers - 1) error("Wrong number of activation functions given.");
 
-    Scalar rescale_factor = 1;
-    std::unique_ptr<Network<Scalar>> d_net;
-    parse("RESCALE", rescale_factor);
+    Scalar rescaleFactor = 1;
+    std::unique_ptr<Network<Scalar>> dNet;
+    parse("RESCALE", rescaleFactor);
 
-    std::unique_ptr<Network<Scalar>> net(new Network<Scalar>(layer_sizes, fns, d_fns, rescale_factor));
+    std::unique_ptr<Network<Scalar>> net(new Network<Scalar>(layerSizes, fns, d_fns, rescaleFactor));
 
     std::vector<Scalar> buffer;
-    for (int l = 0; l < num_layers-1; ++l) {
+    for (int l = 0; l < numLayers-1; ++l) {
         if(!parseNumberedVector("WEIGHTS", l, buffer)) error("Not enough weight matrices provided.");
-        if (static_cast<int>(buffer.size()) != layer_sizes[l] * layer_sizes[l+1]) error("Invalid number of weights between layers " + to_string(l) + " and " + to_string(l+1) + ".");
-        net->set_weights(l, buffer);
+        if (static_cast<int>(buffer.size()) != layerSizes[l] * layerSizes[l+1]) error("Invalid number of weights between layers " + to_string(l) + " and " + to_string(l+1) + ".");
+        net->setWeights(l, buffer);
     }
 
-    for (int l = 0; l < num_layers-1; ++l) {
+    for (int l = 0; l < numLayers-1; ++l) {
         if(!parseNumberedVector("BIASES", l, buffer)) error("Not enough bias vectors provided.");
-        if (static_cast<int>(buffer.size()) != layer_sizes[l+1]) error("Invalid number of biases in layer " + to_string(l+1) + ".");
-        net->set_biases(l+1, buffer);
+        if (static_cast<int>(buffer.size()) != layerSizes[l+1]) error("Invalid number of biases in layer " + to_string(l+1) + ".");
+        net->setBiases(l+1, buffer);
     }
 
     return net;
@@ -150,10 +150,10 @@ std::unique_ptr<Network<Scalar>> ColvarMLP::parseNetwork() {
 
 ColvarMLP::ColvarMLP(const ActionOptions& ao)
     : PLUMED_COLVAR_INIT(ao)
-    , use_double(readFlag("DOUBLE_PREC"))
+    , useDouble(readFlag("DOUBLE_PREC"))
     , atoms(parseAtoms())
-    , d_net(use_double ? parseNetwork<double>() : nullptr)
-    , f_net(use_double ? nullptr : parseNetwork<float>())
+    , dNet(useDouble ? parseNetwork<double>() : nullptr)
+    , fNet(useDouble ? nullptr : parseNetwork<float>())
 {
     addValueWithDerivatives();
     requestAtoms(atoms);
@@ -164,13 +164,13 @@ ColvarMLP::ColvarMLP(const ActionOptions& ao)
 }
 
 void ColvarMLP::calculate() {
-    if (use_double) calculate_by_precision<double>(*d_net);
-    else calculate_by_precision<float>(*f_net);
+    if (useDouble) calculateByPrecision<double>(*dNet);
+    else calculateByPrecision<float>(*fNet);
 }
 
 template<typename Scalar>
-void ColvarMLP::calculate_by_precision(Network<Scalar>& net) {
-    vector<Scalar>& input = net.get_input();
+void ColvarMLP::calculateByPrecision(Network<Scalar>& net) {
+    vector<Scalar>& input = net.getInput();
 
     vector<Vector> positions = getPositions();
     for (unsigned int i = 0; i < positions.size(); i++) {
@@ -179,16 +179,15 @@ void ColvarMLP::calculate_by_precision(Network<Scalar>& net) {
         input[3 * i + 2] = positions[i][2];
     }
 
-    vector<Scalar>& output = net.compute_output();
+    vector<Scalar>& output = net.computeOutput();
     setValue(output[0]);
 
-    vector<Scalar>& derivatives = net.compute_gradient(0);
+    vector<Scalar>& derivatives = net.computeGradient(0);
 
     for (unsigned int i = 0; i < positions.size(); i++) {
         setAtomsDerivatives(i, { derivatives[3 * i], derivatives[3 * i + 1], derivatives[3 * i + 2]});
     }
 
-    /* set box derivatives */
     setBoxDerivativesNoPbc();
 }
 
