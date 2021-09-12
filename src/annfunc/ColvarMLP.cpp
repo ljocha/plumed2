@@ -163,7 +163,6 @@ ColvarMLP::ColvarMLP(const ActionOptions& ao)
         addComponentWithDerivatives("node-" + to_string(i));
     }
 
-    // addValueWithDerivatives();
     requestAtoms(atoms);
 
     checkRead();
