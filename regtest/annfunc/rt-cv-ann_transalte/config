@@ -1,4 +1,0 @@
-type=driver
-plumed_modules=annfunc
-arg="--plumed plumed.dat --ixyz diala_traj_nm.xyz"
-extra_files="../../trajectories/diala_traj_nm.xyz"
