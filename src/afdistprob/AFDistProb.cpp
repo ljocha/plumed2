@@ -13,6 +13,7 @@ AF_DISTPROB ...
 LABEL=prp
 ATOMS=1,5
 LAMBDA=1000
+EPSILON=0.000001
 DISTANCES=0.110,0.111,0.112,0.113
 PROB_MATRIX0=0,0.1,0.1,0
 PROB_MATRIX1=0,0.4,0.4,0
@@ -49,6 +50,7 @@ class AFDistProb : public Colvar {
   std::vector<double> dists;
 
   double lambda;
+  double epsilon;
 
 private:
   std::pair<double, double> interpolate(const std::vector<double>& probs, double dist);
@@ -66,12 +68,14 @@ PLUMED_REGISTER_ACTION(AFDistProb,"AF_DISTPROB")
 AFDistProb::AFDistProb(const ActionOptions&ao)
   : PLUMED_COLVAR_INIT(ao)
   , lambda(1)
+  , epsilon(0)
 {
   addValueWithDerivatives(); setNotPeriodic();
   
   parseAtomList("ATOMS", atoms);
   parseVector("DISTANCES", dists);
   parse("LAMBDA", lambda);
+  parse("EPSILON", epsilon);
 
   probs = Tensor(atoms.size(), atoms.size(), dists.size());
   std::vector<double> prob_vector(atoms.size() * atoms.size());
@@ -108,14 +112,15 @@ void AFDistProb::registerKeywords( Keywords& keys ) {
   keys.add("compulsory", "DISTANCES", "a list of distances.");
   keys.add("numbered", "PROB_MATRIX", "a flattened matrix of probabilities for given distance from the DISTANCES list.");
   // keys.reset_style("PROB_MATRIX", "compulsory");
-  keys.add("optional", "LAMBDA", "smoothness parameter of the property map.");
+  keys.add("optional", "LAMBDA", "a smoothness parameter of the property map.");
+  keys.add("optional", "EPSILON", "a small positive constant ensuring numerical stability of division.");
 }
 
 /**
  * Currently using Property map interpolation
  */
 std::pair<double, double> AFDistProb::interpolate(const std::vector<double>& probs, double dist) {
-  double sum = 0;
+  double sum = epsilon;
   double weighted_sum = 0;
 
   double d_sum = 0;
