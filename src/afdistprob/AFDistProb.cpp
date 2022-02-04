@@ -5,9 +5,36 @@
 
 namespace PLMD {
 namespace colvar {
+namespace afdistprob {
 
 //+PLUMEDOC COLVAR AF_DISTPROB
 /*
+The collective variable is used to calculate the probability of a molecule having a particular shape
+given a probability distribution of distances between every pair of atoms of the molecule.
+This module was developed to be used together with the AlphaFold neural network
+that is capable of generating such matrices for protain molecules \cite Jumper2021.
+
+The input for the collective variable consists of a vector of atoms ATOMS, list of distances DISTANCES, the matrix of probabilities PROB_MATRIXn
+for every listed distance DISTANCES[i], two numerical parameters LAMBDA and EPSILON.
+ATOMS is a vector of atoms whose shape probability is being computed.
+DISTANCES is a vector that enumerates a set of possible distances of two atoms for which the probabilities are precomputed.
+PROB_MATRIXn is a flattened (symetric) matrix of probabilities where the entry PROB_MATRIXn[i][j] denotes the probability,
+that the two atoms ATOMS[i] and ATOMS[j] have distance DISTANCES[n].
+
+The interpolation of this distribution is computed using the property map as described
+in the <a href="https://www.plumed.org/doc-v2.6/user-doc/html/_p_r_o_p_e_r_t_y_m_a_p.html">propery map collective variable</a>.
+LAMBDA is the parameter as in the definition of the property map.
+EPSILON is a positive number close to zero ensuring numerical stability.
+
+The output of the collective variable is the following sum:
+\f$$\sum_{i,j} I(i,j,d(ATOM[i], ATOM[j]))\f$$
+where \f$ d(ATOM[i], ATOM[j]) \f$ is the distance between atoms \f$ i \f$ and \f$ j \f$ and
+\f$ I(i,j,l) \f$ is the interpolation of the values \f$ DISTANCES0[i][j],\ldots, DISTANCESn[i][j]\f$ using the property map.
+
+\par Examples
+Since the actual product of probabilities of individual pairwise distances is for various reasons computationally inpractical,
+the collective variable produces a sum of the probabilities insted. See this paper for more details.
+
 \plumedfile
 AF_DISTPROB ...
 LABEL=prp
@@ -59,6 +86,7 @@ public:
   explicit AFDistProb(const ActionOptions&);
 // active methods:
   void calculate() override;
+  bool isPeriodic(){ return false; }
 /// Register all the keywords for this action
   static void registerKeywords( Keywords& keys );
 };
@@ -83,7 +111,7 @@ AFDistProb::AFDistProb(const ActionOptions&ao)
   for (size_t d = 0; d < dists.size(); ++d) {
     parseNumberedVector("PROB_MATRIX", d, prob_vector);
     
-    /** Fill logit matrix for particular distance */
+    /** Fill probability matrix for particular distance */
     for (size_t i = 0; i < atoms.size(); ++i) {
       for (size_t j = 0; j < atoms.size(); ++j) {
         probs[i][j][d] = prob_vector[i * atoms.size() + j];
@@ -106,18 +134,15 @@ AFDistProb::AFDistProb(const ActionOptions&ao)
 void AFDistProb::registerKeywords( Keywords& keys ) {
   Colvar::registerKeywords( keys );
 
-  // componentsAreNotOptional(keys);
-
   keys.add("atoms","ATOMS","a list of atoms whose coordinates are used to compute the probability.");
   keys.add("compulsory", "DISTANCES", "a list of distances.");
   keys.add("numbered", "PROB_MATRIX", "a flattened matrix of probabilities for given distance from the DISTANCES list.");
-  // keys.reset_style("PROB_MATRIX", "compulsory");
   keys.add("optional", "LAMBDA", "a smoothness parameter of the property map.");
   keys.add("optional", "EPSILON", "a small positive constant ensuring numerical stability of division.");
 }
 
 /**
- * Currently using Property map interpolation
+ * Interpolate using the property map
  */
 std::pair<double, double> AFDistProb::interpolate(const std::vector<double>& probs, double dist) {
   double sum = epsilon;
@@ -142,7 +167,7 @@ std::pair<double, double> AFDistProb::interpolate(const std::vector<double>& pro
   return { weighted_sum / sum, (d_weighted_sum * sum - weighted_sum * d_sum) / (sum * sum) };
 }
 
-// calculator
+
 void AFDistProb::calculate() {
   std::vector<PLMD::Vector> positions = getPositions();
 
@@ -177,8 +202,6 @@ void AFDistProb::calculate() {
   setValue(prob_sum);
 }
 
+} // end of namespace afdistprob
 } // end of namespace colvar
 } // end of namespace PLMD
-
-
-
