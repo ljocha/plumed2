@@ -116,7 +116,7 @@ AFDistProb::AFDistProb(const ActionOptions&ao)
   
   parseAtomList("ATOMS", atoms);
   parseVector("DISTANCES", dists);
-  for (d : dists) {
+  for (double d : dists) {
     if (d <= 0) error("All distances should be positive.");
   }
 
