@@ -9,8 +9,6 @@ namespace afdistprob {
 
 //+PLUMEDOC COLVAR AF_DISTPROB
 /*
-This colvar computes the AF_DISTPROB function as described in \cite Spiwok2022.
-
 Given a probabilistic distribution \f$P_{i,j}\f$ over possible distances of every pair of the residue of a molecule (ATOMS[i], ATOMS[j]),
 AF_DISTPROB computes the expected similarity between the current spacial configuration of the molecule
 and its random spacial arrangement sampled according to \f$P\f$. More precisely, the component expects that the space of possible distances 
@@ -40,7 +38,7 @@ with \f$d_b\f$ being the center of bin \f$b\f$.
 \par Examples
 The intended way of generating the tensor of probabilities \f$P\f$ is via the algorithm AlphaFold 2 \cite Jumper2021.
 
-Here is an example of a usage of the Colvar.
+Here is an example of a usage of AF_DISTPROB colvar.
 \plumedfile
 AF_DISTPROB ...
 ATOMS=1,3,4
