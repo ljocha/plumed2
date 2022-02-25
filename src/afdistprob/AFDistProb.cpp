@@ -102,16 +102,26 @@ AFDistProb::AFDistProb(const ActionOptions&ao)
   
   parseAtomList("ATOMS", atoms);
   parseVector("DISTANCES", dists);
+  for (d : dists) {
+    if (d <= 0) error("All distances should be positive.");
+  }
+
+
   parse("LAMBDA", lambda);
   parse("EPSILON", epsilon);
+  if (epsilon < 0) error("EPSILON should be non-negative.");
+  if (epsilon < 0) error("LAMBDA should be non-negative.");
 
   probs = Tensor(atoms.size(), atoms.size(), dists.size());
   std::vector<double> prob_vector(atoms.size() * atoms.size());
-  
+ 
   for (size_t d = 0; d < dists.size(); ++d) {
     parseNumberedVector("PROB_MATRIX", d, prob_vector);
-    
-    /** Fill probability matrix for particular distance */
+    if (prob_vector.size() != atoms.size() * atoms.size()) {
+      error("The matrix PROB_MATRIX" + std::to_string(d) + " has invalid size.");
+    }
+
+    /** Fill the probability matrix of a particular bin. */
     for (size_t i = 0; i < atoms.size(); ++i) {
       for (size_t j = 0; j < atoms.size(); ++j) {
         probs[i][j][d] = prob_vector[i * atoms.size() + j];
@@ -121,7 +131,7 @@ AFDistProb::AFDistProb(const ActionOptions&ao)
     /** Check whether the matrix is symmetric */
     for (size_t i = 0; i < atoms.size(); ++i) {
       for (size_t j = 0; j < atoms.size(); ++j) {
-        if (probs[i][j][d] != probs[j][i][d]) error("probs matrix is not symmetric");
+        if (probs[i][j][d] != probs[j][i][d]) error("The matrix PROB_MATRIX" + std::to_string(d) + " is not symmetric.");
       }
     }
   }
@@ -134,11 +144,11 @@ AFDistProb::AFDistProb(const ActionOptions&ao)
 void AFDistProb::registerKeywords( Keywords& keys ) {
   Colvar::registerKeywords( keys );
 
-  keys.add("atoms","ATOMS","a list of atoms whose coordinates are used to compute the probability.");
-  keys.add("compulsory", "DISTANCES", "a list of distances.");
-  keys.add("numbered", "PROB_MATRIX", "a flattened matrix of probabilities for given distance from the DISTANCES list.");
-  keys.add("optional", "LAMBDA", "a smoothness parameter of the property map.");
-  keys.add("optional", "EPSILON", "a small positive constant ensuring numerical stability of division.");
+  keys.add("atoms","ATOMS","a list of residua of the molecule.");
+  keys.add("compulsory", "DISTANCES", "a list of centres of the distance bins.");
+  keys.add("numbered", "PROB_MATRIX", "a flattened matrix of probabilities for every bin described in DISTANCES.");
+  keys.add("optional", "LAMBDA", "a smoothness parameter of the property map. The default value is 1.");
+  keys.add("optional", "EPSILON", "a small positive constant ensuring the numerical stability of division. The default value is 0.");
 }
 
 /**
