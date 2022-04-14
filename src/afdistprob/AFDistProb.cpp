@@ -1,7 +1,7 @@
-#include "../colvar/Colvar.h"
-#include "../colvar/ActionRegister.h"
-#include "../tools/Matrix.h"
-#include "../tools/Vector.h"
+#include "colvar/Colvar.h"
+#include "colvar/ActionRegister.h"
+#include "tools/Matrix.h"
+#include "tools/Vector.h"
 
 namespace PLMD {
 namespace colvar {
