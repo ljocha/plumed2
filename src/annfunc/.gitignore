@@ -1,4 +1,5 @@
 core/**
 deps/**
 function/**
+colvar/**
 *.o

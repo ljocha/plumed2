@@ -1,5 +1,5 @@
-#include "../colvar/Colvar.h"
-#include "../colvar/ActionRegister.h"
+#include "colvar/Colvar.h"
+#include "colvar/ActionRegister.h"
 
 #include <cassert>
 #include <string>
@@ -7,38 +7,60 @@
 #include <iostream>
 #include <memory>
 
-#include "./network.hpp"
+#include "network.hpp"
 
 using namespace std;
 
-// #define DEBUG
-// #define DEBUG_2
-// #define DEBUG_3
-
 namespace PLMD {
 namespace colvar {
+namespace annfunc {
 
 //+PLUMEDOC COLVAR CMLP
 /*
 Multilayer perceptron colvar
 
-Computes the function of multilayer perceptron with positions of atoms as input and a single output.
-Optionally, the colvar can rescale the input by a specified constant.
-The computation can be done with float or double precision.
+This component implements a multilayer perceptron collective variable, i.e.,
+a neural network with several dense layers. The weights, biases, and activation functions
+can be specified as parameters of the component. Optionally, a rescaling factor
+of the input values can be provided to normalize the input data by scalar multiplication.
+
+Unlike the ANN function, the inputs of this component are directly atom coordinates,
+hence CMLP colvar provides much faster performance if compared to
+ANN function composed with POSITION colvars.
+
+\par Examples
+Assume we want to model a multilayer perceptron with three layers of sizes [3, 2, 1]
+(note that the input size is always a multiple of 3 since there are three input values per atom).
+
+The weight matrix connecting layers 0 and 1 is
+
+[[1,2,3], [4,5,6]],
+
+and the weight matrix connecting layers 1 and 2 is
+
+[[7,8]]
+
+Bias for layers 1 and 2 are in this order [9, 10] and [11], respectively.
+Further, assume there should be a RELU activation function in Layer 1 and a SIGMOID activation function in 
+Layer 2. Then the following PLUMED code describes such a component that takes three coordinates x,y,z of atom 4,
+multiplies them by 0.1 and evalues the desired MLP on them:
 
 \plumedfile
 CMLP ...
 LABEL=ann_cv1
-ATOMS=1,4,12
-RESCALE=0.100041
+ATOMS=4
+RESCALE=0.1
 SIZES=3,2,1
-ACTIVATIONS=TANH,TANH
-WEIGHTS0=1.35345,2.353535,-3.242425,4.23424,5.25425,6.252343
-WEIGHTS1=0.125232,0.224323
-BIASES0=-0.005190,0.001307
-BIASES1=0.213432
+ACTIVATIONS=TANH,SIGMOID
+WEIGHTS0=1,2,3,4,5,6
+WEIGHTS1=7,8
+BIASES0=9,10
+BIASES1=11
 ... CMLP
 \endplumedfile
+
+To access its output component, we use "ann_cv.node-0". If there were more components in the output layer,
+we could access them by "ann_cv.node-1", "ann_cv.node-2", etc.
 
 */
 //+ENDPLUMEDOC
@@ -203,5 +225,6 @@ void ColvarMLP::calculateByPrecision(Network<Scalar>& net) {
     setBoxDerivativesNoPbc();
 }
 
+} // namespace annfunc
 } // namespace colvar
 } // namespace PLMD
