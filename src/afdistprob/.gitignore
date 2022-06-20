@@ -1,4 +1,6 @@
+colvar/**
 core/**
 deps/**
 function/**
+tools/**
 *.o
