@@ -11,7 +11,7 @@ namespace afdistprob {
 /*
 Given a probabilistic distribution \f$P_{i,j}\f$ over possible distances of every pair of the residue of a molecule (ATOMS[i], ATOMS[j]),
 AF_DISTPROB computes the expected similarity between the current spacial configuration of the molecule
-and its random spacial arrangement sampled according to \f$P\f$. More precisely, the component expects that the space of possible distances 
+and its random spacial arrangement sampled according to \f$P\f$. More precisely, the component expects that the space of possible distances
 is discretized into \f$M\f$ bins \f$b_1, \ldots, b_M\f$, and for each pair of residues, only the set of probabilities over these bins is given.
 The colvar then computes the expected number of pairs \f$(i,j)\f$, such that the bin \f$b_{i,j}\f$ corresponding to the actual
 distance of the residues ATOMS[i] and ATOMS[j] and the random bin \f$B_{i,j}\f$ drawn from the distribution \f$P_{i,j}\f$ coincide.
@@ -71,14 +71,14 @@ class _3_Tensor {
   using storage_type = std::vector<std::vector<std::vector<T>>>;
 
   storage_type data;
-  public:
-    _3_Tensor() = default;
+public:
+  _3_Tensor() = default;
 
-    _3_Tensor(size_t w, size_t h, size_t d)
+  _3_Tensor(size_t w, size_t h, size_t d)
     : data(storage_type(w, std::vector<std::vector<T>>(h, std::vector<T>(d)))) {}
 
-    std::vector<std::vector<T>>& operator[](int i) { return data[i]; }
-    const std::vector<std::vector<T>>& operator[](int i) const { return data[i]; }
+  std::vector<std::vector<T>>& operator[](int i) { return data[i]; }
+  const std::vector<std::vector<T>>& operator[](int i) const { return data[i]; }
 };
 
 
@@ -100,7 +100,7 @@ public:
   explicit AFDistProb(const ActionOptions&);
 // active methods:
   void calculate() override;
-  bool isPeriodic(){ return false; }
+  bool isPeriodic() { return false; }
 /// Register all the keywords for this action
   static void registerKeywords( Keywords& keys );
 };
@@ -113,7 +113,7 @@ AFDistProb::AFDistProb(const ActionOptions&ao)
   , epsilon(0)
 {
   addValueWithDerivatives(); setNotPeriodic();
-  
+
   parseAtomList("ATOMS", atoms);
   parseVector("DISTANCES", dists);
   for (double d : dists) {
@@ -128,7 +128,7 @@ AFDistProb::AFDistProb(const ActionOptions&ao)
 
   probs = Tensor(atoms.size(), atoms.size(), dists.size());
   std::vector<double> prob_vector(atoms.size() * atoms.size());
- 
+
   for (size_t d = 0; d < dists.size(); ++d) {
     parseNumberedVector("PROB_MATRIX", d, prob_vector);
     if (prob_vector.size() != atoms.size() * atoms.size()) {
@@ -177,7 +177,7 @@ std::pair<double, double> AFDistProb::interpolate(const std::vector<double>& pro
 
   for (size_t d = 0; d < probs.size(); ++d) {
     double t = exp(-lambda * pow(dists[d] - dist, 2));
-    
+
     sum += t;
     weighted_sum += t * probs[d];
 
