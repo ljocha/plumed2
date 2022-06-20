@@ -7,7 +7,7 @@
 #include <iostream>
 #include <memory>
 
-#include "annfunc/network.hpp"
+#include "network.hpp"
 
 using namespace std;
 
