@@ -1,11 +1,10 @@
 #include <cmath>
-// #include "./matrix.hpp"
-#include "../tools/Matrix.h"
+#include "tools/Matrix.h"
 
 namespace PLMD {
 
 template <typename Scalar>
-class Network
+class MultilayerPerceptron
 {
 using matrix = PLMD::Matrix<Scalar>;
 using vector = std::vector<Scalar>;
@@ -27,7 +26,7 @@ private:
     std::vector<fn_t> d_activations;
 
 public:
-    explicit Network(std::vector<int> layerSizes, std::vector<fn_t> activations, std::vector<fn_t> d_activations, Scalar rescaleFactor = 1)
+    explicit MultilayerPerceptron(std::vector<int> layerSizes, std::vector<fn_t> activations, std::vector<fn_t> d_activations, Scalar rescaleFactor = 1)
     : numLayers(layerSizes.size())
     , rescaleFactor(rescaleFactor)
     , layerSizes(std::move(layerSizes))
@@ -117,9 +116,9 @@ public:
     }
 
     /*
-    * Derivatives are computed with respect to output values f(v).
+    * Derivatives are computed in terms of the output value f(v).
     */
-    static Scalar tanh(Scalar v) {return std::tanh(v); }
+    static Scalar tanh(Scalar v) { return std::tanh(v); }
     static Scalar d_tanh(Scalar fv) { return 1 - fv*fv; }
 
     static Scalar sigmoid(Scalar v) { return 1/(1 + exp(-v)); }

@@ -1,13 +1,12 @@
 #include "colvar/Colvar.h"
 #include "colvar/ActionRegister.h"
+#include "MultilayerPerceptron.hpp"
 
 #include <cassert>
 #include <string>
 #include <cmath>
 #include <iostream>
 #include <memory>
-
-#include "network.hpp"
 
 using namespace std;
 
@@ -65,21 +64,21 @@ we could access them by "ann_cv.node-1", "ann_cv.node-2", etc.
 */
 //+ENDPLUMEDOC
 
-class ColvarMLP : public Colvar
+class ColvarMLP : public colvar::Colvar
 {
 private:
   bool useDouble;
   std::vector<AtomNumber> atoms;
-  std::unique_ptr<Network<double>> dNet;
-  std::unique_ptr<Network<float>> fNet;
+  std::unique_ptr<MultilayerPerceptron<double>> dNet;
+  std::unique_ptr<MultilayerPerceptron<float>> fNet;
 
+  bool readFlag(const std::string& flagName);
   std::vector<AtomNumber> parseAtoms();
-  bool readFlag(std::string flagName);
   template <typename Scalar>
-  std::unique_ptr<Network<Scalar>> parseNetwork();
+  std::unique_ptr<MultilayerPerceptron<Scalar>> parseNetwork();
 
   template <typename Scalar>
-  void calculateByPrecision(Network<Scalar>& net);
+  void calculate(MultilayerPerceptron<Scalar>& net);
 public:
   static void registerKeywords(Keywords& keys);
   ColvarMLP(const ActionOptions& ao);
@@ -91,16 +90,15 @@ PLUMED_REGISTER_ACTION(ColvarMLP,"CMLP")
 void ColvarMLP::registerKeywords( Keywords& keys ) {
   Colvar::registerKeywords(keys);
 
-  keys.add("atoms","ATOMS","a list of atoms whose coordinates are input of the layer");
+  keys.add("atoms","ATOMS","a list of atoms involved in the collectiva variable");
   keys.add("optional", "RESCALE", "a coefficient the input coordinates are multiplied by");
-
   keys.addFlag("DOUBLE_PREC", false, "whether to use double precision or not");
   keys.add("compulsory", "ACTIVATIONS", "array of activation functions in individual layers, F_1, ..., F_N; options TANH, LINEAR, RELU, SIGMOID");
   keys.add("compulsory", "SIZES", "array of sizes of individual layers, S_0, ..., S_n (S_0 should equal to three times the number of atoms)");
   keys.add("numbered", "WEIGHTS", "array of flattened weight matrices W_1, ..., W_N; matrix W_L of size S_{L-1} x S_L connects layers L-1 and L");
   keys.add("numbered", "BIASES", "array of bias vectors B_1, ..., B_N; vector B_L is added to the inner potential of layer L");
 
-  keys.addOutputComponent("node", "default", "components of MLP outputs");
+  keys.addOutputComponent("node", "default", "components representing the output nodes of the MLP");
 }
 
 std::vector<AtomNumber> ColvarMLP::parseAtoms() {
@@ -109,14 +107,14 @@ std::vector<AtomNumber> ColvarMLP::parseAtoms() {
   return atoms;
 }
 
-bool ColvarMLP::readFlag(std::string flagName) {
+bool ColvarMLP::readFlag(const std::string& flagName) {
   bool flag = false;
-  parseFlag("DOUBLE_PREC", flag);
+  parseFlag(flagName, flag);
   return flag;
 }
 
 template <typename Scalar>
-std::unique_ptr<Network<Scalar>> ColvarMLP::parseNetwork() {
+std::unique_ptr<MultilayerPerceptron<Scalar>> ColvarMLP::parseNetwork() {
   /* sizes of all the layers including the input layer */
   std::vector<int> layerSizes;
   parseVector("SIZES", layerSizes);
@@ -124,37 +122,35 @@ std::unique_ptr<Network<Scalar>> ColvarMLP::parseNetwork() {
   int numLayers = layerSizes.size();
 
   std::vector<std::string> activationNames;
-  std::vector<Scalar (*)(Scalar)> fns{Network<Scalar>::linear};
-  std::vector<Scalar (*)(Scalar)> d_fns{Network<Scalar>::d_linear};
+  std::vector<Scalar (*)(Scalar)> fns{MultilayerPerceptron<Scalar>::linear};
+  std::vector<Scalar (*)(Scalar)> d_fns{MultilayerPerceptron<Scalar>::d_linear};
 
   /* activations in all the layers except for the input layer */
   parseVector("ACTIVATIONS", activationNames);
   for (auto& name : activationNames) {
     if (name == "TANH") {
-      fns.push_back(Network<Scalar>::tanh);
-      d_fns.push_back(Network<Scalar>::d_tanh);
+      fns.push_back(MultilayerPerceptron<Scalar>::tanh);
+      d_fns.push_back(MultilayerPerceptron<Scalar>::d_tanh);
     } else if (name == "LINEAR") {
-      fns.push_back(Network<Scalar>::linear);
-      d_fns.push_back(Network<Scalar>::d_linear);
+      fns.push_back(MultilayerPerceptron<Scalar>::linear);
+      d_fns.push_back(MultilayerPerceptron<Scalar>::d_linear);
     } else if (name == "SIGMOID") {
-      fns.push_back(Network<Scalar>::sigmoid);
-      d_fns.push_back(Network<Scalar>::d_sigmoid);
+      fns.push_back(MultilayerPerceptron<Scalar>::sigmoid);
+      d_fns.push_back(MultilayerPerceptron<Scalar>::d_sigmoid);
     } else if (name == "RELU") {
-      fns.push_back(Network<Scalar>::relu);
-      d_fns.push_back(Network<Scalar>::d_relu);
+      fns.push_back(MultilayerPerceptron<Scalar>::relu);
+      d_fns.push_back(MultilayerPerceptron<Scalar>::d_relu);
     } else {
       error("Unknown activation: " + name + ".");
     }
   }
 
-
   if (static_cast<int>(activationNames.size()) != numLayers - 1) error("Wrong number of activation functions given.");
 
   Scalar rescaleFactor = 1;
-  std::unique_ptr<Network<Scalar>> dNet;
   parse("RESCALE", rescaleFactor);
 
-  std::unique_ptr<Network<Scalar>> net(new Network<Scalar>(layerSizes, fns, d_fns, rescaleFactor));
+  std::unique_ptr<MultilayerPerceptron<Scalar>> net(new MultilayerPerceptron<Scalar>(layerSizes, fns, d_fns, rescaleFactor));
 
   std::vector<Scalar> buffer;
   for (int l = 0; l < numLayers-1; ++l) {
@@ -183,22 +179,21 @@ ColvarMLP::ColvarMLP(const ActionOptions& ao)
 
   for (int i = 0; i < outputSize; ++i) {
     addComponentWithDerivatives("node-" + to_string(i));
+    componentIsNotPeriodic("node-" + to_string(i));
   }
 
   requestAtoms(atoms);
 
   checkRead();
-
-  getPntrToValue()->setNotPeriodic();
 }
 
 void ColvarMLP::calculate() {
-  if (useDouble) calculateByPrecision<double>(*dNet);
-  else calculateByPrecision<float>(*fNet);
+  if (useDouble) calculate<double>(*dNet);
+  else calculate<float>(*fNet);
 }
 
 template<typename Scalar>
-void ColvarMLP::calculateByPrecision(Network<Scalar>& net) {
+void ColvarMLP::calculate(MultilayerPerceptron<Scalar>& net) {
   vector<Scalar>& input = net.getInput();
 
   vector<Vector> positions = getPositions();
@@ -218,11 +213,10 @@ void ColvarMLP::calculateByPrecision(Network<Scalar>& net) {
 
     for (unsigned int i = 0; i < positions.size(); i++) {
       setAtomsDerivatives(comp, i, { derivatives[3 * i], derivatives[3 * i + 1], derivatives[3 * i + 2]});
-      // comp->setDerivative(i, { derivatives[3 * i], derivatives[3 * i + 1], derivatives[3 * i + 2]});
     }
-  }
 
-  setBoxDerivativesNoPbc();
+    setBoxDerivativesNoPbc(comp);
+  }
 }
 
 } // namespace annfunc
