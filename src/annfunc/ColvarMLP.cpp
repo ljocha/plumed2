@@ -2,13 +2,7 @@
 #include "colvar/ActionRegister.h"
 #include "MultilayerPerceptron.hpp"
 
-#include <cassert>
 #include <string>
-#include <cmath>
-#include <iostream>
-#include <memory>
-
-using namespace std;
 
 namespace PLMD {
 namespace colvar {
@@ -81,7 +75,7 @@ private:
   void calculate(MultilayerPerceptron<Scalar>& net);
 public:
   static void registerKeywords(Keywords& keys);
-  ColvarMLP(const ActionOptions& ao);
+  explicit ColvarMLP(const ActionOptions& ao);
   virtual void calculate();
 };
 
@@ -102,9 +96,9 @@ void ColvarMLP::registerKeywords( Keywords& keys ) {
 }
 
 std::vector<AtomNumber> ColvarMLP::parseAtoms() {
-  std::vector<AtomNumber> atoms;
-  parseAtomList("ATOMS",atoms);
-  return atoms;
+  std::vector<AtomNumber> atom_buffer;
+  parseAtomList("ATOMS", atom_buffer);
+  return atom_buffer;
 }
 
 bool ColvarMLP::readFlag(const std::string& flagName) {
@@ -155,13 +149,13 @@ std::unique_ptr<MultilayerPerceptron<Scalar>> ColvarMLP::parseNetwork() {
   std::vector<Scalar> buffer;
   for (int l = 0; l < numLayers-1; ++l) {
     if(!parseNumberedVector("WEIGHTS", l, buffer)) error("Not enough weight matrices provided.");
-    if (static_cast<int>(buffer.size()) != layerSizes[l] * layerSizes[l+1]) error("Invalid number of weights between layers " + to_string(l) + " and " + to_string(l+1) + ".");
+    if (static_cast<int>(buffer.size()) != layerSizes[l] * layerSizes[l+1]) error("Invalid number of weights between layers " + std::to_string(l) + " and " + std::to_string(l+1) + ".");
     net->setWeights(l, buffer);
   }
 
   for (int l = 0; l < numLayers-1; ++l) {
     if(!parseNumberedVector("BIASES", l, buffer)) error("Not enough bias vectors provided.");
-    if (static_cast<int>(buffer.size()) != layerSizes[l+1]) error("Invalid number of biases in layer " + to_string(l+1) + ".");
+    if (static_cast<int>(buffer.size()) != layerSizes[l+1]) error("Invalid number of biases in layer " + std::to_string(l+1) + ".");
     net->setBiases(l+1, buffer);
   }
 
@@ -178,8 +172,8 @@ ColvarMLP::ColvarMLP(const ActionOptions& ao)
   int outputSize = useDouble ? dNet->outputSize() : fNet->outputSize();
 
   for (int i = 0; i < outputSize; ++i) {
-    addComponentWithDerivatives("node-" + to_string(i));
-    componentIsNotPeriodic("node-" + to_string(i));
+    addComponentWithDerivatives("node-" + std::to_string(i));
+    componentIsNotPeriodic("node-" + std::to_string(i));
   }
 
   requestAtoms(atoms);
@@ -194,25 +188,25 @@ void ColvarMLP::calculate() {
 
 template<typename Scalar>
 void ColvarMLP::calculate(MultilayerPerceptron<Scalar>& net) {
-  vector<Scalar>& input = net.getInput();
+  std::vector<Scalar>& input = net.getInput();
 
-  vector<Vector> positions = getPositions();
+  std::vector<Vector> positions = getPositions();
   for (unsigned int i = 0; i < positions.size(); i++) {
     input[3 * i + 0] = positions[i][0];
     input[3 * i + 1] = positions[i][1];
     input[3 * i + 2] = positions[i][2];
   }
 
-  const vector<Scalar>& output = net.computeOutput();
+  const std::vector<Scalar>& output = net.computeOutput();
   for (uint i = 0; i < output.size(); ++i) {
-    std::string compName = "node-" + to_string(i);
+    std::string compName = "node-" + std::to_string(i);
     Value* comp = getPntrToComponent(compName);
 
     comp->set(output[i]);
-    const vector<Scalar>& derivatives = net.computeGradient(i);
+    const std::vector<Scalar>& derivatives = net.computeGradient(i);
 
-    for (unsigned int i = 0; i < positions.size(); i++) {
-      setAtomsDerivatives(comp, i, { derivatives[3 * i], derivatives[3 * i + 1], derivatives[3 * i + 2]});
+    for (unsigned int j = 0; j < positions.size(); j++) {
+      setAtomsDerivatives(comp, j, { derivatives[3 * j], derivatives[3 * j + 1], derivatives[3 * j + 2]});
     }
 
     setBoxDerivativesNoPbc(comp);

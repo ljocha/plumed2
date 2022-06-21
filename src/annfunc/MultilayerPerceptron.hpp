@@ -1,5 +1,7 @@
-#include <cmath>
 #include "tools/Matrix.h"
+
+#include <algorithm>
+#include <cmath>
 
 namespace PLMD {
 
@@ -68,19 +70,20 @@ public:
 
     const vector& computeOutput() {
         /* rescale the input */
-        for (Scalar& v : layers[0] ) {
-            v *= rescaleFactor;
-        }
+        std::transform(layers[0].begin(), layers[0].end(), layers[0].begin(), [&](Scalar v) { return v * rescaleFactor; });
 
         /* compute innier potentials in the hidden layer */
         for (int l = 1; l < numLayers; ++l) {
             mult(weights[l-1], layers[l-1], layers[l]);
-            for (uint i = 0; i < biases[l].size(); ++i) layers[l][i] += biases[l][i];
+            std::transform(
+                layers[l].begin(), layers[l].end(),
+                biases[l].begin(),
+                layers[l].begin(),
+                [&](Scalar v, Scalar b) { return v + b; }
+            );
 
             /* compute activations in the hidden layer */
-            for (size_t i = 0; i < layers[l].size(); i++) {
-                layers[l][i] = activations[l](layers[l][i]);
-            }
+            std::transform(layers[l].begin(), layers[l].end(), layers[l].begin(), [&](Scalar v) { return activations[l](v); });
         }
 
         return layers.back();
@@ -104,9 +107,7 @@ public:
         }
 
         /* rescale the input gradient */
-        for (Scalar& g : gradients.front()) {
-            g *= rescaleFactor;
-        }
+        std::transform(gradients.front().begin(), gradients.front().end(), gradients.front().begin(), [&](Scalar v) { return v * rescaleFactor; });
 
         return gradients.front();
     }
@@ -121,7 +122,7 @@ public:
     static Scalar tanh(Scalar v) { return std::tanh(v); }
     static Scalar d_tanh(Scalar fv) { return 1 - fv*fv; }
 
-    static Scalar sigmoid(Scalar v) { return 1/(1 + exp(-v)); }
+    static Scalar sigmoid(Scalar v) { return 1/(1 + std::exp(-v)); }
     static Scalar d_sigmoid(Scalar fv) { return (1 - fv) * fv; }
 
     static Scalar linear(Scalar v) { return v; }
