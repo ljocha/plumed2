@@ -113,6 +113,11 @@ std::unique_ptr<MultilayerPerceptron<Scalar>> ColvarMLP::parseNetwork() {
   std::vector<int> layerSizes;
   parseVector("SIZES", layerSizes);
 
+  if (layerSizes.size() < 2) error("There should be at least two layers.");
+  if (layerSizes.front() != atoms.size() * 3) {
+    error("The input layer should contain 3 times as many nodes as there are input atoms.");
+  }
+
   int numLayers = layerSizes.size();
 
   std::vector<std::string> activationNames;
@@ -135,11 +140,13 @@ std::unique_ptr<MultilayerPerceptron<Scalar>> ColvarMLP::parseNetwork() {
       fns.push_back(MultilayerPerceptron<Scalar>::relu);
       d_fns.push_back(MultilayerPerceptron<Scalar>::d_relu);
     } else {
-      error("Unknown activation: " + name + ".");
+      error("Unknown activation function: " + name + ".");
     }
   }
 
-  if (static_cast<int>(activationNames.size()) != numLayers - 1) error("Wrong number of activation functions given.");
+  if (static_cast<int>(activationNames.size()) != numLayers - 1) {
+    error("Wrong number of activation functions given. There should be one for each non-input layer.");
+  }
 
   Scalar rescaleFactor = 1;
   parse("RESCALE", rescaleFactor);
@@ -149,14 +156,16 @@ std::unique_ptr<MultilayerPerceptron<Scalar>> ColvarMLP::parseNetwork() {
   std::vector<Scalar> buffer;
   for (int l = 0; l < numLayers-1; ++l) {
     if(!parseNumberedVector("WEIGHTS", l, buffer)) error("Not enough weight matrices provided.");
-    if (static_cast<int>(buffer.size()) != layerSizes[l] * layerSizes[l+1]) error("Invalid number of weights between layers " + std::to_string(l) + " and " + std::to_string(l+1) + ".");
+    if (static_cast<int>(buffer.size()) != layerSizes[l] * layerSizes[l+1]) {
+      error("Invalid number of weights between layers " + std::to_string(l) + " and " + std::to_string(l+1) + ".");
+    }
     net->setWeights(l, buffer);
   }
 
-  for (int l = 0; l < numLayers-1; ++l) {
-    if(!parseNumberedVector("BIASES", l, buffer)) error("Not enough bias vectors provided.");
-    if (static_cast<int>(buffer.size()) != layerSizes[l+1]) error("Invalid number of biases in layer " + std::to_string(l+1) + ".");
-    net->setBiases(l+1, buffer);
+  for (int l = 1; l < numLayers; ++l) {
+    if(!parseNumberedVector("BIASES", l-1, buffer)) error("Not enough bias vectors provided.");
+    if (static_cast<int>(buffer.size()) != layerSizes[l]) error("Invalid number of biases in layer " + std::to_string(l) + ".");
+    net->setBiases(l, buffer);
   }
 
   return net;
