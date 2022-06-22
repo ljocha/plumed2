@@ -39,20 +39,20 @@ public:
     , activations(std::move(activations))
     , d_activations(std::move(d_activations))
     {
-        for (int i = 0; i < numLayers - 1; ++i) {
-            weights[i] = matrix(this->layerSizes[i+1], this->layerSizes[i]);
+        for (int l = 0; l < numLayers - 1; ++l) {
+            weights[l] = matrix(this->layerSizes[l+1], this->layerSizes[l]);
         }
 
-        for (int i = 0; i < numLayers; ++i) {
-            biases[i] = vector(this->layerSizes[i], 0);
+        for (int l = 0; l < numLayers; ++l) {
+            biases[l] = vector(this->layerSizes[l]);
         }
 
-        for (int i = 0; i < numLayers; ++i) {
-            layers[i] = vector(this->layerSizes[i]);
+        for (int l = 0; l < numLayers; ++l) {
+            layers[l] = vector(this->layerSizes[l]);
         }
 
-        for (int i = 0; i < numLayers-1; ++i) {
-            gradients[i] = vector(this->layerSizes[i]);
+        for (int l = 0; l < numLayers - 1; ++l) {
+            gradients[l] = vector(this->layerSizes[l]);
         }
     }
 
@@ -90,8 +90,8 @@ public:
     }
 
     const vector& computeGradient(int outputIndex) {
-        for (uint j = 0; j < gradients.back().size(); ++j) {
-            gradients.back()[j] = weights.back()(outputIndex, j);
+        for (uint i = 0; i < gradients.back().size(); ++i) {
+            gradients.back()[i] = weights.back()(outputIndex, i);
         }
         
         for (size_t i = 0; i < gradients.back().size(); ++i) {
