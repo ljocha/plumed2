@@ -11,31 +11,31 @@ namespace afdistprob {
 /*
 Given a probabilistic distribution \f$P_{i,j}\f$ over possible distances of every pair of the residue of a molecule (ATOMS[i], ATOMS[j]),
 AF_DISTPROB computes the expected similarity between the current spacial configuration of the molecule
-and its random spacial arrangement sampled according to \f$P\f$. More precisely, the component expects that the space of possible distances
-is discretized into \f$M\f$ bins \f$b_1, \ldots, b_M\f$, and for each pair of residues, only the set of probabilities over these bins is given.
+and its random spacial arrangement sampled according to \f$P\f$. More precisely, the component expects the space of possible distances
+to be discretized into \f$M\f$ bins \f$b_1, \ldots, b_M\f$, and for each pair of residues, a distribution over these bins is given.
 The colvar then computes the expected number of pairs \f$(i,j)\f$, such that the bin \f$b_{i,j}\f$ corresponding to the actual
 distance of the residues ATOMS[i] and ATOMS[j] and the random bin \f$B_{i,j}\f$ drawn from the distribution \f$P_{i,j}\f$ coincide.
 
-Thus the value of the collective variable is almost equal to the sum \f$\sum_{1 \leq i < j \leq M}P_{i,j}(b_{i,j})\f$.
-However, since it is necessary for a collective variable to be differentiable with respect to the position of the atoms,
+Thus the value of the collective variable is almost equal to the sum \f$\sum_{1 \leq i < j \leq n}P_{i,j}(b_{i,j})\f$.
+However, since a collective needs to be differentiable,
 the colvar, in fact, computes a weighted average of probabilities of all the bins. This can be viewed as a kind of interpolation
-that shifts positions of the bins so that the actual distance of the pair of residues always lies in the middle of its bin.
+that shifts the positions of the bins so that the actual distance of the pair of residues always lies in the middle of its bin.
 The interpolation is computed by the property map as described in
-the <a href="https://www.plumed.org/doc-v2.6/user-doc/html/_p_r_o_p_e_r_t_y_m_a_p.html">propery map collective variable</a>.
-Alternatively, the property map can be seen as a sum weighted by a softmax function over the absolute difference of the distances.
+the <a href="./_p_r_o_p_e_r_t_y_m_a_p.html">propery map collective variable</a>.
 
 Altogether, the output of the collective variable is the following sum
 \f{equation*}{
   \sum_{0 \leq i < j < n} \tilde{P}_{i,j}(d(ATOM[i], ATOM[j])),
 \f}
 where \f$d(ATOM[i], ATOM[j])\f$ means the distance between atoms ATOM[i] and ATOM[j],
-and \f$ \tilde{P}_{i,j}(d(ATOM[i], ATOM[j])) \f$ denotes the interpolation
+and \f$ \tilde{P}_{i,j}(d(ATOM[i], ATOM[j])) \f$ denotes the weighted sum
 \f{equation*}{
 \tilde{P}_{i,j}(d) = \frac{\sum_{b=1}^{M} P_{i,j}(b)e^{-\lambda(d - d_b)}}{\varepsilon + \sum_{b=1}^{M} e^{-\lambda(d - d_b)}}
 \f}
 with \f$d_b\f$ being the center of bin \f$b\f$.
 
 \par Examples
+
 The intended way of generating the tensor of probabilities \f$P\f$ is via the algorithm AlphaFold 2 \cite Jumper2021.
 
 Here is an example of a usage of AF_DISTPROB colvar.
@@ -50,8 +50,8 @@ PROB_MATRIX1=0,0.75,0.55,0.75,0,0.35,0.55,0.35,0
 PROB_MATRIX2=0,0.15,0.25,0.15,0,0.35,0.25,0.35,0
 ... AF_DISTPROB
 \endplumedfile
-Note that there are three distance bins in the example located around points \f$0.110, 0.111\f$ and \f$0.112\f$.
-Therefore, there are thre matrices PROB_MATRIX0, PROB_MATRIX1, and PROB_MATRIX2. Since we are working with three atoms,
+There are three distance bins in the example located around points \f$0.110, 0.111\f$ and \f$0.112\f$.
+Therefore, there are three matrices PROB_MATRIX0, PROB_MATRIX1, and PROB_MATRIX2. Since we are working with three atoms,
 the matrices have order three. For example, the list 0,0.1,0.2,0.1,0,0.3,0.2,0.3,0 represents the matrix
 \f{pmatrix}{
 0 & 0.1 & 0.2\\
@@ -59,8 +59,8 @@ the matrices have order three. For example, the list 0,0.1,0.2,0.1,0,0.3,0.2,0.3
 0.2 & 0.3 & 0
 \f}
 See that the matrix is symmetric, and its diagonal elements are zero.
-The values PROB_MATRIX0[i][j], PROB_MATRIX1[i][j], PROB_MATRIX2[i][j] denotes the probabilities of the distance between atoms ATOMS[i] and ATOMS[j]
-lying in the bin around points 0.110,0.111, and 0.112 respectively, and they should sum up to one.
+The values PROB_MATRIX0[i][j], PROB_MATRIX1[i][j], PROB_MATRIX2[i][j] are the probabilities of the distance of atoms ATOMS[i] and ATOMS[j]
+lying in the bin centred at points 0.110,0.111, and 0.112 respectively, and they should sum up to one.
 
 */
 //+ENDPLUMEDOC

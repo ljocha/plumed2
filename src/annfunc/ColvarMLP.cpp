@@ -14,37 +14,44 @@ Multilayer perceptron colvar
 
 This component implements a multilayer perceptron collective variable, i.e.,
 a neural network with several dense layers. The weights, biases, and activation functions
-can be specified as parameters of the component. Optionally, a rescaling factor
-of the input values can be provided to normalize the input data by scalar multiplication.
+can be specified as parameters of the component. An optional parameter can be provided
+in order to normalize the input data by scalar multiplication.
 
-Unlike the ANN function, the inputs of this component are directly atom coordinates,
-hence CMLP colvar provides much faster performance if compared to
-ANN function composed with POSITION colvars.
+Unlike the <a href="./_a_n_n.html">ANN function</a>, the inputs of this component are directly atom coordinates,
+hence CMLP colvar is considerably faster than ANN function composed with POSITION colvars.
 
 \par Examples
+
 Assume we want to model a multilayer perceptron with three layers of sizes [3, 2, 1]
-(note that the input size is always a multiple of 3 since there are three input values per atom).
+(note that the size of the first layer is always necesarily a multiple of 3 since there are three input values per atom).
+Further, assume there should be the RELU activation function in Layer 1 and the SIGMOID activation function in
+Layer 2.
 
-The weight matrix connecting layers 0 and 1 is
-
-[[1,2,3], [4,5,6]],
-
+Further assume the weight matrix connecting layers 0 and 1 is
+\f{equation*}{
+W_{01} = [[1,2,3], [4,5,6]],
+\f}
 and the weight matrix connecting layers 1 and 2 is
+\f{equation*}{
+W_{12} = [[7,8]].
+\f}
 
-[[7,8]]
+Finaly, let the bias vetors for layers 1 and 2 be the following
+\f{align*}{
+  b_1 &= [9, 10]\\
+  b_2 &= [11].
+\f}
 
-Bias for layers 1 and 2 are in this order [9, 10] and [11], respectively.
-Further, assume there should be a RELU activation function in Layer 1 and a SIGMOID activation function in
-Layer 2. Then the following PLUMED code describes such a component that takes three coordinates x,y,z of atom 4,
-multiplies them by 0.1 and evalues the desired MLP on them:
+Then the following PLUMED code constructs the described multilayer perceptron whose input consists of the three coordinates x,y,z of atom 4
+multiplied by \f$0.1\f$.
 
 \plumedfile
 CMLP ...
-LABEL=ann_cv1
+LABEL=ann_cv
 ATOMS=4
 RESCALE=0.1
 SIZES=3,2,1
-ACTIVATIONS=TANH,SIGMOID
+ACTIVATIONS=RELU,SIGMOID
 WEIGHTS0=1,2,3,4,5,6
 WEIGHTS1=7,8
 BIASES0=9,10
