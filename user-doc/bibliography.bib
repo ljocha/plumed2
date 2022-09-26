@@ -2900,7 +2900,7 @@ doi = {https://doi.org/10.1016/0898-5529(88)90015-2}
 }
 
 
-@article{Arsiccio-SASA-2021,
+@article{Arsiccio-T-SASA-2021,
 author = {Arsiccio, Andrea and Shea, Joan-Emma},
 title = {Protein Cold Denaturation in Implicit Solvent Simulations: A Transfer Free Energy Approach},
 journal = {The Journal of Physical Chemistry B},
@@ -2910,6 +2910,29 @@ pages = {5222-5232},
 year = {2021},
 doi = {10.1021/acs.jpcb.1c01694}
 }
+
+@article{Arsiccio-C-SASA-2022,
+author = {Arsiccio, Andrea and Ganguly, Pritam and Shea, Joan-Emma},
+title = {A Transfer Free Energy Based Implicit Solvent Model for Protein Simulations in Solvent Mixtures: Urea-Induced Denaturation as a Case Study},
+journal = {The Journal of Physical Chemistry B},
+volume = {0},
+number = {0},
+pages = {null},
+year = {2022},
+doi = {10.1021/acs.jpcb.2c00889}
+}
+
+@article{Arsiccio-P-SASA-2021,
+author = {Arsiccio, Andrea and Shea, Joan-Emma},
+title = {Pressure Unfolding of Proteins: New Insights into the Role of Bound Water},
+journal = {The Journal of Physical Chemistry B},
+volume = {125},
+number = {30},
+pages = {8431-8442},
+year = {2021},
+doi = {10.1021/acs.jpcb.1c04398}
+}
+
 
 @article{dimer-metad,
 author = {Marco Nava and Ferruccio Palazzesi and Claudio Perego and Michele Parrinello },
@@ -3063,22 +3086,6 @@ month = apr
   year={2019},
 }
 
-%% OPES
-@article{Invernizzi2020rethinking,
-  title = {Rethinking Metadynamics: From Bias Potentials to Probability Distributions},
-  author = {Invernizzi, Michele and Parrinello, Michele},
-  journal = {The Journal of Physical Chemistry Letters},
-  doi = {10.1021/acs.jpclett.0c00497},
-  arxivId = {1909.07250},
-  issn = {1948-7185},
-  url = {https://pubs.acs.org/doi/10.1021/acs.jpclett.0c00497},
-  month = {apr},
-  number = {7},
-  pages = {2731--2736},
-  volume = {11},
-  year = {2020}
-}
-
 @article{Pietrucci2017review,
   author = {Pietrucci, Fabio},
   doi = {10.1016/j.revip.2017.05.001},
@@ -3092,6 +3099,22 @@ month = apr
   year = {2017}
 }
 
+%%% OPES %%%
+@article{Invernizzi2020rethinking,
+  title = {Rethinking Metadynamics: From Bias Potentials to Probability Distributions},
+  author = {Invernizzi, Michele and Parrinello, Michele},
+  journal = {The Journal of Physical Chemistry Letters},
+  doi = {10.1021/acs.jpclett.0c00497},
+  arxivId = {1909.07250},
+  issn = {1948-7185},
+  url = {https://pubs.acs.org/doi/10.1021/acs.jpclett.0c00497},
+  number = {7},
+  pages = {2731--2736},
+  volume = {11},
+  year = {2020}
+}
+
+%%% OPES %%%
 @article{Invernizzi2020unified,
   title = {Unified Approach to Enhanced Sampling},
   author = {Invernizzi, Michele and Piaggi, Pablo M. and Parrinello, Michele},
@@ -3099,12 +3122,19 @@ month = apr
   volume = {10},
   issue = {4},
   pages = {041034},
-  numpages = {18},
   year = {2020},
-  month = {Nov},
   publisher = {American Physical Society},
   doi = {10.1103/PhysRevX.10.041034},
   url = {https://link.aps.org/doi/10.1103/PhysRevX.10.041034}
+}
+
+%%% OPES %%%
+@article{Invernizzi2022explore,
+  title = {Exploration vs Convergence Speed in Adaptive-bias Enhanced Sampling},
+  author = {Invernizzi, Michele and Parrinello, Michele},
+  journal = {preprint arXiv:2201.09950},
+  year = {2022},
+  url = {https://arxiv.org/abs/2201.09950}
 }
 
 @article{limongelli2013funnel,
@@ -3177,4 +3207,93 @@ month = apr
         url={https://doi.org/10.1038/s41586-021-03819-2}
 }
 
-@Comment{jabref-meta: databaseType:bibtex;}
+%ves-wavelets - added by BP
+@book{daubechies_ten_1992,
+  title = {Ten Lectures on Wavelets},
+  author = {Daubechies, Ingrid},
+  year = {1992},
+  publisher = {Society for Industrial and Applied Mathematics},
+  address = {Philadelphia, PA},
+  isbn = {978-0-89871-274-2},
+  number = {61},
+  series = {{{CBMS}}-{{NSF}} Regional Conference Series in Applied Mathematics}
+}
+
+%ves-wavelets - added by BP
+@book{strang_wavelets_1997,
+  title = {Wavelets and Filter Banks},
+  author = {Strang, Gilbert and Nguyen, Truong},
+  year = {1997},
+  publisher = {Wellesley-Cambridge Press},
+  address = {Wellesley, MA},
+  isbn = {978-0-9614088-7-9},
+}
+
+%ves-cubic-b-splines - added by BP
+@article{habermann_multidimensional_2007,
+  title = {Multidimensional Spline Interpolation: Theory and Applications},
+  author = {Habermann, Christian and Kindermann, Fabian},
+  year = {2007},
+  month = sep,
+  volume = {30},
+  pages = {153--169},
+  issn = {0927-7099, 1572-9974},
+  doi = {10.1007/s10614-007-9092-4},
+  journal = {Computational Economics},
+  number = {2}
+}
+
+@article{Palazzesi_s2_2017, 
+year = {2017}, 
+title = {{Conformational Entropy as Collective Variable for Proteins}}, 
+author = {Palazzesi, Ferruccio and Valsson, Omar and Parrinello, Michele}, 
+journal = {The Journal of Physical Chemistry Letters}, 
+issn = {1948-7185}, 
+doi = {10.1021/acs.jpclett.7b01770}, 
+pmid = {28906117}, 
+eprint = {1704.03344}, 
+pages = {4752--4756}, 
+number = {19}, 
+volume = {8}
+}
+
+@article{Ming_s2_2004,
+year = {2004}, 
+title = {{Prediction of methyl-side Chain Dynamics in Proteins}}, 
+author = {Ming, Dengming and Brüschweiler, Rafael}, 
+journal = {Journal of Biomolecular NMR}, 
+issn = {0925-2738}, 
+doi = {10.1023/b:jnmr.0000032612.70767.35}, 
+pmid = {15213434}, 
+pages = {363--368}, 
+number = {3}, 
+volume = {29}, 
+keywords = {}
+}
+
+@article{Zhang_s2_2002, 
+year = {2002}, 
+title = {{Contact Model for the Prediction of NMR N−H Order Parameters in Globular Proteins}}, 
+author = {Zhang, Fengli and Brüschweiler, Rafael}, 
+journal = {Journal of the American Chemical Society}, 
+issn = {0002-7863}, 
+doi = {10.1021/ja027847a}, 
+pmid = {12392400}, 
+pages = {12654--12655}, 
+number = {43}, 
+volume = {124}, 
+keywords = {}
+}
+
+@article{ValssonPampel_Wavelets_2022,
+year = {2022}, 
+title = {{Improving the Efficiency of Variationally Enhanced Sampling with Wavelet-Based Bias Potentials}}, 
+author = {Pampel, Benjamin and Valsson, Omar}, 
+journal = {J. Chem. Theory Comput.},
+issn = {1549-9618}, 
+doi = {10.1021/acs.jctc.2c00197}, 
+pmid = {35762642}
+pages = {4127--4141}, 
+number = {7}, 
+volume = {18}
+}

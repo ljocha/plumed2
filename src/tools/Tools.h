@@ -1,5 +1,5 @@
 /* +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-   Copyright (c) 2011-2021 The plumed team
+   Copyright (c) 2011-2022 The plumed team
    (see the PEOPLE file at the root of the distribution for a list of names)
 
    See http://www.plumed.org for more information.
@@ -49,6 +49,16 @@ const double kBoltzmann(0.0083144621);
 /// \ingroup TOOLBOX
 /// PI
 const double pi(3.141592653589793238462643383279502884197169399375105820974944592307);
+
+const double dp2cutoff(6.25);
+
+const double dp2cutoffA=1.00193418799744762399; // 1.0/(1-std::exp(-dp2cutoff));
+const double dp2cutoffB=-.00193418799744762399; // -std::exp(-dp2cutoff)/(1-std::exp(-dp2cutoff));
+
+inline static bool dp2cutoffNoStretch() {
+  static const auto* res=std::getenv("PLUMED_DP2CUTOFF_NOSTRETCH");
+  return res;
+}
 
 /// \ingroup TOOLBOX
 /// Empty class which just contains several (static) tools

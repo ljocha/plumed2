@@ -8,7 +8,7 @@ reference: \cite Invernizzi2020rethinking \cite Invernizzi2020unified
 
 ## Overview
 
-The OPES module contains the implementation of the on-the-fly probability enhanced sampling mehtod (OPES) \cite Invernizzi2020rethinking \cite Invernizzi2020unified.
+The OPES module contains the implementation of the on-the-fly probability enhanced sampling mehtod (OPES) \cite Invernizzi2020rethinking \cite Invernizzi2022explore \cite Invernizzi2020unified.
 
 The OPES method aims at sampling a given target distribution over the configuration space, \f$p^{\text{tg}}(\mathbf{x})\f$,
 different from the equilibrium Boltzmann distribution, \f$P(\mathbf{x})\propto e^{-\beta U(\mathbf{x})}\f$.
@@ -24,8 +24,7 @@ Depending on the kind of target distribution one wishes to sample, different \re
 This module is not installed by default. Add '\-\-enable-modules=opes' to your './configure' command when building PLUMED to enable these features. See also \ref mymodules.
 
 ## Usage
-The OPES module is composed by two bias actions, \ref OPES_METAD that samples metadynamics-like target distributions (e.g. the well-tempered one),
-and \ref OPES_EXPANDED that samples expanded ensembles target distributions (replica-exchange-like).
+The OPES module contains three bias actions, \ref OPES_METAD and \ref OPES_METAD_EXPLORE that sample metadynamics-like target distributions (e.g. the well-tempered one), and \ref OPES_EXPANDED that samples expanded ensembles target distributions (replica-exchange-like).
 It also contains various expansion collective variables (ECVs) to define such expanded targets.
 
 ## Module Contents

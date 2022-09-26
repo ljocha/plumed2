@@ -1,5 +1,5 @@
 /* +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-   Copyright (c) 2018-2021 The plumed team
+   Copyright (c) 2018-2022 The plumed team
    (see the PEOPLE file at the root of the distribution for a list of names)
 
    See http://www.plumed.org for more information.
@@ -80,6 +80,7 @@ void PlumedHandle::cmd(const std::string & key,const TypesafePtr & ptr) {
     safe.nelem=ptr.getNelem();
     safe.shape=const_cast<std::size_t*>(ptr.getShape());
     safe.flags=ptr.getFlags();
+    safe.opt=nullptr;
     // try/catch needed to remap exceptions in anonymous namespace to standard plumed exceptions
     // this is necessary otherwise a user would not be able to catch them
     try {

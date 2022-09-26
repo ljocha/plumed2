@@ -1,5 +1,5 @@
 /* +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-   Copyright (c) 2012-2021 The plumed team
+   Copyright (c) 2012-2022 The plumed team
    (see the PEOPLE file at the root of the distribution for a list of names)
 
    See http://www.plumed.org for more information.
@@ -137,7 +137,7 @@ std::unique_ptr<KernelFunctions> BiasRepresentation::readFromPoint(IFile *ifile)
     ifile->scanField(names[i],cc[i]);
   }
   double h=1.0;
-  return Tools::make_unique<KernelFunctions>(cc,histosigma,"gaussian","DIAGONAL",h);
+  return Tools::make_unique<KernelFunctions>(cc,histosigma,"stretched-gaussian","DIAGONAL",h);
 }
 
 void BiasRepresentation::pushKernel( IFile *ifile ) {

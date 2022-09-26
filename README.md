@@ -47,10 +47,11 @@ Below you find the status on [GitHub Actions](https://github.com/plumed/plumed2/
 
 | Branch   |      Status   | First stable release (year) | Still supported |
 |:--------:|:-------------:|:--------:|:------:|
-| master   | [![CI](https://github.com/plumed/plumed2/workflows/CI/badge.svg?branch=master)](https://github.com/plumed/plumed2/actions) | 2021 (expected) | / |
+| master   | [![CI](https://github.com/plumed/plumed2/workflows/CI/badge.svg?branch=master)](https://github.com/plumed/plumed2/actions) | 2022 (expected) | / |
+| v2.8     | [![CI](https://github.com/plumed/plumed2/workflows/CI/badge.svg?branch=v2.8)](https://github.com/plumed/plumed2/actions)   | 2021 | yes |
 | v2.7     | [![CI](https://github.com/plumed/plumed2/workflows/CI/badge.svg?branch=v2.7)](https://github.com/plumed/plumed2/actions)   | 2020 | yes |
 | v2.6     | [![CI](https://github.com/plumed/plumed2/workflows/CI/badge.svg?branch=v2.6)](https://github.com/plumed/plumed2/actions)   | 2019 | yes |
-| v2.5     | [![CI](https://github.com/plumed/plumed2/workflows/CI/badge.svg?branch=v2.5)](https://github.com/plumed/plumed2/actions)   | 2018 | yes |
+| v2.5     | [![CI](https://github.com/plumed/plumed2/workflows/CI/badge.svg?branch=v2.5)](https://github.com/plumed/plumed2/actions)   | 2018 | no |
 | v2.4     | [![CI](https://github.com/plumed/plumed2/workflows/CI/badge.svg?branch=v2.4)](https://github.com/plumed/plumed2/actions)   | 2017 | no |
 | v2.3     | [![Build Status](https://travis-ci.org/plumed/plumed2.svg?branch=v2.3)](https://travis-ci.org/plumed/plumed2)   | 2016 | no |
 | v2.2     | [![Build Status](https://travis-ci.org/plumed/plumed2.svg?branch=v2.2)](https://travis-ci.org/plumed/plumed2)   | 2015 | no |
@@ -68,7 +69,7 @@ Here's a description of the content of each file and directory in the root PLUME
     Makefile.conf.in : template configuration makefile
     PEOPLE           : list of authors
     README.md        : this file
-    VERSION          : version file
+    VERSION.txt      : version file
     astyle           : a local version of astyle, used to format code
     configure        : configuration script
     configure.ac     : configuration script (autoconf)
@@ -102,8 +103,6 @@ Suggested software (libraries are checked by `./configure` and enabled if availa
 * Optimized blas and lapack libraries. They are automatically replaced by an internal version if not available.
 * [VMD molfile plugins](http://www.ks.uiuc.edu/Research/vmd/plugins) to read arbitrary file formats. They are automatically replaced by an internal version supporting a few formats if not available.
 * [Zlib library](http://zlib.net/) to use compressed data files.
-* [Xdrfile library](http://www.gromacs.org/Developer_Zone/Programming_Guide/XTC_Library) to have read/write access to gromacs
-  trajectory files.
 * [Doxygen](http:://www.doxygen.org) to build user manual. Doxygen might need the following packages:
   * Latex to build the pdf user manual.
   * [Graphviz](http://www.graphviz.org) to show class hierarchy in

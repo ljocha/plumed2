@@ -1,5 +1,5 @@
 /* +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-   Copyright (c) 2011-2021 The plumed team
+   Copyright (c) 2011-2022 The plumed team
    (see the PEOPLE file at the root of the distribution for a list of names)
 
    See http://www.plumed.org for more information.
@@ -104,7 +104,7 @@ void ActionAtomistic::calculateAtomicNumericalDerivatives( ActionWithValue* a, c
   std::vector<Vector> value(nval*natoms);
   std::vector<Tensor> valuebox(nval);
   std::vector<Vector> savedPositions(natoms);
-  const double delta=sqrt(epsilon);
+  const double delta=std::sqrt(epsilon);
 
   for(int i=0; i<natoms; i++) for(int k=0; k<3; k++) {
       savedPositions[i][k]=positions[i][k];

@@ -1,6 +1,6 @@
 
 # version number
-VERSION = $(shell if test -f ../../VERSION ; then grep -v \\\# ../../VERSION ; else echo "Unknown" ; fi )
+VERSION = $(shell if test -f ../../VERSION.txt ; then grep -v \\\# ../../VERSION.txt ; else echo "Unknown" ; fi )
 
 # here we build the list of modules to be linked in plumedKernel
 KERNEL_MODULES := $(addprefix ../,$(shell ../maketools/find_modules.sh))
@@ -101,9 +101,9 @@ endif
 # check if bindir and libdir are consistent.
 # notice that this is not required yet but if we later we want
 # to use $ORIGIN based rpaths this would be needed
-ifneq ($(dir $(bindir)),$(dir $(libdir)))
-  $(error bindir and libdir are not consistent, please set them as subdirectories of the same directory)
-endif
+#ifneq ($(dir $(bindir)),$(dir $(libdir)))
+#  $(error bindir $(bindir) and libdir $(libdir) are not consistent, please set them as subdirectories of the same directory)
+#endif
 
 .PHONY: all links $(DIRS) $(DIRSLINKS) all-static $(PLUMED_LIBDIR)Plumed.cmake $(PLUMED_LIBDIR)Plumed.inc install $(PLUMED_SCRIPTS_EXE) install-html
 all:
@@ -436,7 +436,7 @@ lib-shared: $(PLUMED_KERNEL) $(PLUMED_SHARED_OBJ) $(PLUMED_MAIN_SHARED) $(PLUMED
            $(PLUMED_LIBDIR)Plumed.cmake $(PLUMED_LIBDIR)Plumed.cmake.runtime $(PLUMED_LIBDIR)Plumed.cmake.shared
 
 $(PLUMED_SCRIPTS_EXE):
-	@echo "#! /bin/bash" > $@
+	@echo "#! /usr/bin/env bash" > $@
 	@echo "echo 'NOTE: shell only version, useful when plumed is cross compiled' >&2" >> $@
 # The logic implemented here should be the same as in config/Config.inc.in
 # Please keep them consistent
@@ -494,7 +494,7 @@ $(PLUMED_MAIN_STATIC): $(OBJ_MAIN) $(OBJ_KERNEL) $(OBJ_WRAPPER)
 # I thus prefer to directly link PLUMED_KERNEL.
 # This makes Linux identical to OSX and is likely more portable.
 $(PLUMED_MAIN_SHARED): $(OBJ_MAIN) $(OBJ_WRAPPER) $(PLUMED_KERNEL)
-	$(LD) $(LDFLAGS) $^ -o $@ $(LIBS)
+	$(LD) $(LDFLAGS) $^ -o $@ $(LIBS) $(LD_MAIN_RUNPATH)
 ifeq ($(use_loader_path),yes)
 ifeq ($(PLUMED_INSTALL),Install)
 	install_name_tool -change "$(SONAME_INSTALL_PATH)$(notdir $(PLUMED_KERNEL))" "@loader_path/../$(notdir $(libdir))/$(notdir $(PLUMED_KERNEL))" $@

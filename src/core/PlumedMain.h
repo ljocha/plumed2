@@ -1,5 +1,5 @@
 /* +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-   Copyright (c) 2011-2021 The plumed team
+   Copyright (c) 2011-2022 The plumed team
    (see the PEOPLE file at the root of the distribution for a list of names)
 
    See http://www.plumed.org for more information.
@@ -65,6 +65,7 @@ class ExchangePatterns;
 class FileBase;
 class DataFetchingObject;
 class TypesafePtr;
+class IFile;
 
 /**
 Main plumed object.
@@ -249,7 +250,12 @@ public:
     Read an input file.
     \param str name of the file
   */
-  void readInputFile(std::string str);
+  void readInputFile(const std::string & str);
+  /**
+    Read an input file.
+    \param ifile
+  */
+  void readInputFile(IFile & ifile);
   /**
     Read an input string.
     \param str name of the string
@@ -306,6 +312,11 @@ public:
     Shortcut for: waitData() + justCalculate() + backwardPropagate()
   */
   void performCalcNoUpdate();
+  /**
+    Perform the calculation without backpropagation nor update()
+    Shortcut for: waitData() + justCalculate()
+  */
+  void performCalcNoForces();
   /**
     Complete PLUMED calculation.
     Shortcut for prepareCalc() + performCalc()

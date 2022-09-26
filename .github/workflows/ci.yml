@@ -119,6 +119,8 @@ jobs:
         echo "OMPI_MCA_btl_base_warn_component_unused=0" >> $GITHUB_ENV
         echo "OMPI_MCA_btl_base_verbose=0" >> $GITHUB_ENV
         echo "MPIEXEC=mpirun --oversubscribe" >> $GITHUB_ENV
+        pip install --user mpi4py
+        python -c "import mpi4py"
     - name: Build PLUMED
       run: |
         ccache -s -M 100M
@@ -162,7 +164,7 @@ jobs:
          ./.travis/push doc
 
   codecheck:
-    runs-on: ubuntu-18.04
+    runs-on: ubuntu-20.04
     steps:
     - uses: actions/checkout@v2
     - name: Set path
@@ -170,7 +172,7 @@ jobs:
          echo "$HOME/opt/bin" >> $GITHUB_PATH
     - name: Install requirements
       run: |
-        ./.travis/install.cppcheck 2.6.1
+        ./.travis/install.cppcheck 2.6.2
     - name: Build astyle
       run: |
         make -j 4 -C astyle
@@ -200,7 +202,7 @@ jobs:
         make -C docker fedora34
 
   macports:
-    runs-on: macos-10.15
+    runs-on: macos-11
     strategy:
       fail-fast: false
       matrix:
@@ -235,12 +237,13 @@ jobs:
     - name: Run tests
       run: |
         sudo port -N -d test plumed ${{ matrix.variant }}
-        for p in $PYVERS ; do
-          sudo port test $p-plumed
-        done
+        # NOT WORKING FOR SOME MACPORTS RELATED REASON - GB 28/01/2022
+        #for p in $PYVERS ; do
+        #  sudo port test $p-plumed
+        #done
 
   macsimple:
-    runs-on: macos-10.15
+    runs-on: macos-11
     steps:
     - uses: actions/checkout@v2
     - name: Set paths
@@ -267,7 +270,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [ubuntu-20.04 , macos-10.15]
+        os: [ubuntu-20.04 , macos-11]
     runs-on: ${{ matrix.os }}
     steps:
     - uses: actions/checkout@v2
