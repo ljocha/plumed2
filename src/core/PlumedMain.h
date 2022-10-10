@@ -137,7 +137,7 @@ private:
   Citations& citations=*citations_fwd;
 
 /// Present step number.
-  long int step;
+  long long int step;
 
 /// Condition for plumed to be active.
 /// At every step, PlumedMain is checking if there are Action's requiring some work.
@@ -359,7 +359,7 @@ public:
 /// Referenge to the log stream
   Log & getLog();
 /// Return the number of the step
-  long int getStep()const {return step;}
+  long long int getStep()const {return step;}
 /// Stop the run
   void exit(int c=0);
 /// Load a shared library
@@ -414,6 +414,8 @@ public:
   bool updateFlagsTop();
 /// Set end of input file
   void setEndPlumed();
+/// Get the value of the end plumed flag
+  bool getEndPlumed() const ;
 /// Call error handler.
 /// Should only be called from \ref plumed_plumedmain_cmd().
 /// If the error handler was not set, returns false.
@@ -486,6 +488,11 @@ bool PlumedMain::updateFlagsTop() {
 inline
 void PlumedMain::setEndPlumed() {
   endPlumed=true;
+}
+
+inline
+bool PlumedMain::getEndPlumed() const {
+  return endPlumed;
 }
 
 inline

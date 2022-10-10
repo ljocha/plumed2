@@ -3681,9 +3681,7 @@ void plumed_c2f(plumed p,char*c) {
     /*
       characters will range between '0' (ASCII 48) and 'o' (ASCII 111=48+63)
     */
-    /* cppcheck-suppress objectIndex */
     c[2*i]=cc[i]/64+48;
-    /* cppcheck-suppress objectIndex */
     c[2*i+1]=cc[i]%64+48;
   }
   for(; i<16; i++) {
@@ -3715,7 +3713,6 @@ plumed plumed_f2c(const char*c) {
     /*
       perform the reversed transform
     */
-    /* cppcheck-suppress objectIndex */
     cc[i]=(c[2*i]-48)*64 + (c[2*i+1]-48);
   }
   for(; i<16; i++) {
@@ -3823,7 +3820,7 @@ plumed_safeptr plumed_f_safeptr_ ## type_ ## suffix(void*val,__PLUMED_WRAPPER_ST
   safe.ptr=val; \
   safe.nelem=nelem; \
   safe.shape=shape; \
-  safe.flags= (flags & (~0x1ffffff)) + 0x10000*code + size; \
+  safe.flags= (flags & (~0x1ffffffu)) + 0x10000*code + size; \
   safe.opt=opt; \
   return safe; \
 }
