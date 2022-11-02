@@ -194,32 +194,31 @@ void PytorchModel::calculate() {
     getPntrToComponent(name_comp)->set(cvs[j]);
   }
 
-  std::cout << "num out=" << _n_out << std::endl;
-  //derivatives
-  for(unsigned j=0; j<_n_out; j++) {
-    // expand dim to have shape (1,_n_out)
-    auto grad_outputs = torch::ones({1});
-    // calculate derivatives with automatic differentiation
-    std::cout << "compute graphs" << std::endl;
-    auto gradient = torch::autograd::grad({output.slice(/*dim=*/0, /*start=*/j, /*end=*/j+1)},
-    {input_S},
-    /*grad_outputs=*/ {grad_outputs},
-    /*retain_graph=*/true,
-    /*create_graph=*/false);
-    // add dimension
-    auto grad = gradient[0];
-    //convert to vector
-    std::vector<float> der = this->tensor_to_vector ( grad );
+  if (!doNotCalculateDerivatives()) {
+    //derivatives
+    for(unsigned j=0; j<_n_out; j++) {
+      auto grad_outputs = torch::ones({1});
+      // calculate derivatives with automatic differentiation
+      auto gradient = torch::autograd::grad({output.slice(/*dim=*/0, /*start=*/j, /*end=*/j+1)},
+      {input_S},
+      /*grad_outputs=*/ {grad_outputs},
+      /*retain_graph=*/true,
+      /*create_graph=*/false);
+      // add dimension
+      auto grad = gradient[0];
+      //convert to vector
+      std::vector<float> der = this->tensor_to_vector ( grad );
 
-    string name_comp = "node-"+std::to_string(j);
-    Value* comp = getPntrToComponent(name_comp);
+      string name_comp = "node-"+std::to_string(j);
+      Value* comp = getPntrToComponent(name_comp);
 
-    //set derivatives of component j
-    for (unsigned int i = 0; i < positions.size(); i++) {
-      setAtomsDerivatives(comp, i, { der[3 * i], der[3 * i + 1], der[3 * i + 2] });
+      //set derivatives of component j
+      for (unsigned int i = 0; i < positions.size(); i++) {
+        setAtomsDerivatives(comp, i, { der[3 * i], der[3 * i + 1], der[3 * i + 2] });
+      }
+
+      setBoxDerivativesNoPbc(comp);
     }
-
-    setBoxDerivativesNoPbc(comp);
   }
 }
 }
