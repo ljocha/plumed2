@@ -1,5 +1,5 @@
 /* +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-   Copyright (c) 2011-2021 The plumed team
+   Copyright (c) 2011-2022 The plumed team
    (see the PEOPLE file at the root of the distribution for a list of names)
 
    See http://www.plumed.org for more information.
@@ -65,6 +65,7 @@ class ExchangePatterns;
 class FileBase;
 class DataFetchingObject;
 class TypesafePtr;
+class IFile;
 
 /**
 Main plumed object.
@@ -136,7 +137,7 @@ private:
   Citations& citations=*citations_fwd;
 
 /// Present step number.
-  long int step;
+  long long int step;
 
 /// Condition for plumed to be active.
 /// At every step, PlumedMain is checking if there are Action's requiring some work.
@@ -249,7 +250,12 @@ public:
     Read an input file.
     \param str name of the file
   */
-  void readInputFile(std::string str);
+  void readInputFile(const std::string & str);
+  /**
+    Read an input file.
+    \param ifile
+  */
+  void readInputFile(IFile & ifile);
   /**
     Read an input string.
     \param str name of the string
@@ -307,6 +313,11 @@ public:
   */
   void performCalcNoUpdate();
   /**
+    Perform the calculation without backpropagation nor update()
+    Shortcut for: waitData() + justCalculate()
+  */
+  void performCalcNoForces();
+  /**
     Complete PLUMED calculation.
     Shortcut for prepareCalc() + performCalc()
   */
@@ -348,7 +359,7 @@ public:
 /// Referenge to the log stream
   Log & getLog();
 /// Return the number of the step
-  long int getStep()const {return step;}
+  long long int getStep()const {return step;}
 /// Stop the run
   void exit(int c=0);
 /// Load a shared library
@@ -403,6 +414,8 @@ public:
   bool updateFlagsTop();
 /// Set end of input file
   void setEndPlumed();
+/// Get the value of the end plumed flag
+  bool getEndPlumed() const ;
 /// Call error handler.
 /// Should only be called from \ref plumed_plumedmain_cmd().
 /// If the error handler was not set, returns false.
@@ -475,6 +488,11 @@ bool PlumedMain::updateFlagsTop() {
 inline
 void PlumedMain::setEndPlumed() {
   endPlumed=true;
+}
+
+inline
+bool PlumedMain::getEndPlumed() const {
+  return endPlumed;
 }
 
 inline

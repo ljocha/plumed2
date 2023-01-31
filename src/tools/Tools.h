@@ -1,5 +1,5 @@
 /* +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-   Copyright (c) 2011-2021 The plumed team
+   Copyright (c) 2011-2022 The plumed team
    (see the PEOPLE file at the root of the distribution for a list of names)
 
    See http://www.plumed.org for more information.
@@ -23,6 +23,8 @@
 #define __PLUMED_tools_Tools_h
 
 #include "AtomNumber.h"
+#include "Vector.h"
+#include "Tensor.h"
 #include <vector>
 #include <string>
 #include <cctype>
@@ -33,6 +35,7 @@
 #include <sstream>
 #include <memory>
 #include <cstddef>
+#include <queue>
 
 namespace PLMD {
 
@@ -49,6 +52,16 @@ const double kBoltzmann(0.0083144621);
 /// \ingroup TOOLBOX
 /// PI
 const double pi(3.141592653589793238462643383279502884197169399375105820974944592307);
+
+const double dp2cutoff(6.25);
+
+const double dp2cutoffA=1.00193418799744762399; // 1.0/(1-std::exp(-dp2cutoff));
+const double dp2cutoffB=-.00193418799744762399; // -std::exp(-dp2cutoff)/(1-std::exp(-dp2cutoff));
+
+inline static bool dp2cutoffNoStretch() {
+  static const auto* res=std::getenv("PLUMED_DP2CUTOFF_NOSTRETCH");
+  return res;
+}
 
 /// \ingroup TOOLBOX
 /// Empty class which just contains several (static) tools
@@ -88,10 +101,14 @@ public:
   static bool convertNoexcept(const std::string & str,int & t);
 /// Convert a string to a long int, reading it
   static bool convertNoexcept(const std::string & str,long int & t);
+/// Convert a string to a long long int, reading it
+  static bool convertNoexcept(const std::string & str,long long int & t);
 /// Convert a string to an unsigned int, reading it
   static bool convertNoexcept(const std::string & str,unsigned & t);
 /// Convert a string to a long unsigned int, reading it
   static bool convertNoexcept(const std::string & str,long unsigned & t);
+/// Convert a string to a long long unsigned int, reading it
+  static bool convertNoexcept(const std::string & str,long long unsigned & t);
 /// Convert a string to a atom number, reading it
   static bool convertNoexcept(const std::string & str,AtomNumber & t);
 /// Convert a string to a string (i.e. copy)
@@ -220,6 +237,113 @@ public:
   template<class T, class... Args>
   static typename _Unique_if<T>::_Known_bound
   make_unique(Args&&...) = delete;
+
+  static void set_to_zero(double*ptr,unsigned n) {
+    for(unsigned i=0; i<n; i++) ptr[i]=0.0;
+  }
+
+  template<unsigned n>
+  static void set_to_zero(std::vector<VectorGeneric<n>> & vec) {
+    unsigned s=vec.size();
+    if(s==0) return;
+    set_to_zero(&vec[0][0],s*n);
+  }
+
+  template<unsigned n,unsigned m>
+  static void set_to_zero(std::vector<TensorGeneric<n,m>> & vec) {
+    unsigned s=vec.size();
+    if(s==0) return;
+    set_to_zero(&vec[0](0,0),s*n*m);
+  }
+
+
+
+
+  /// Merge sorted vectors.
+  /// Takes a vector of pointers to containers and merge them.
+  /// Containers should be already sorted.
+  /// The content is appended to the result vector.
+  /// Optionally, uses a priority_queue implementation.
+  template<class C>
+  static void mergeSortedVectors(const std::vector<C*> & vecs, std::vector<typename C::value_type> & result,bool priority_queue=false) {
+
+    /// local class storing the range of remaining objects to be pushed
+    struct Entry
+    {
+      typename C::const_iterator fwdIt,endIt;
+
+      Entry(C const& v) : fwdIt(v.begin()), endIt(v.end()) {}
+      /// check if this vector still contains something to be pushed
+      explicit operator bool () const { return fwdIt != endIt; }
+      /// to allow using a priority_queu, which selects the highest element.
+      /// we here (counterintuitively) define < as >
+      bool operator< (Entry const& rhs) const { return *fwdIt > *rhs.fwdIt; }
+    };
+
+    if(priority_queue) {
+      std::priority_queue<Entry> queue;
+      // note: queue does not have reserve() method
+
+      // add vectors to the queue
+      {
+        std::size_t maxsize=0;
+        for(unsigned i=0; i<vecs.size(); i++) {
+          if(vecs[i]->size()>maxsize) maxsize=vecs[i]->size();
+          if(!vecs[i]->empty())queue.push(Entry(*vecs[i]));
+        }
+        // this is just to save multiple reallocations on push_back
+        result.reserve(maxsize);
+      }
+
+      // first iteration (to avoid a if in the main loop)
+      if(queue.empty()) return;
+      auto tmp=queue.top();
+      queue.pop();
+      result.push_back(*tmp.fwdIt);
+      tmp.fwdIt++;
+      if(tmp) queue.push(tmp);
+
+      // main loop
+      while(!queue.empty()) {
+        auto tmp=queue.top();
+        queue.pop();
+        if(result.back() < *tmp.fwdIt) result.push_back(*tmp.fwdIt);
+        tmp.fwdIt++;
+        if(tmp) queue.push(tmp);
+      }
+    } else {
+
+      std::vector<Entry> entries;
+      entries.reserve(vecs.size());
+
+      {
+        std::size_t maxsize=0;
+        for(int i=0; i<vecs.size(); i++) {
+          if(vecs[i]->size()>maxsize) maxsize=vecs[i]->size();
+          if(!vecs[i]->empty())entries.push_back(Entry(*vecs[i]));
+        }
+        // this is just to save multiple reallocations on push_back
+        result.reserve(maxsize);
+      }
+
+      while(!entries.empty()) {
+        // find smallest pending element
+        // we use max_element instead of min_element because we are defining < as > (see above)
+        const auto minval=*std::max_element(entries.begin(),entries.end())->fwdIt;
+
+        // push it
+        result.push_back(minval);
+
+        // fast forward vectors with elements equal to minval (to avoid duplicates)
+        for(auto & e : entries) while(e && *e.fwdIt==minval) ++e.fwdIt;
+
+        // remove from the entries vector all exhausted vectors
+        auto erase=std::remove_if(entries.begin(),entries.end(),[](const Entry & e) {return !e;});
+        entries.erase(erase,entries.end());
+      }
+    }
+
+  }
 };
 
 template <class T>

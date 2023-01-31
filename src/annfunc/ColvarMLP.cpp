@@ -1,207 +1,234 @@
-#include "../colvar/Colvar.h"
-#include "../colvar/ActionRegister.h"
+#include "colvar/Colvar.h"
+#include "colvar/ActionRegister.h"
+#include "MultilayerPerceptron.hpp"
 
-#include <cassert>
 #include <string>
-#include <cmath>
-#include <iostream>
-#include <memory>
-
-#include "./network.hpp"
-
-using namespace std;
-
-// #define DEBUG
-// #define DEBUG_2
-// #define DEBUG_3
 
 namespace PLMD {
 namespace colvar {
+namespace annfunc {
 
 //+PLUMEDOC COLVAR CMLP
 /*
 Multilayer perceptron colvar
 
-Computes the function of multilayer perceptron with positions of atoms as input and a single output.
-Optionally, the colvar can rescale the input by a specified constant.
-The computation can be done with float or double precision.
+This component implements a multilayer perceptron collective variable, i.e.,
+a neural network with several dense layers. The weights, biases, and activation functions
+can be specified as parameters of the component. An optional parameter can be provided
+in order to normalize the input data by scalar multiplication.
+
+Unlike the <a href="./_a_n_n.html">ANN function</a>, the inputs of this component are directly atom coordinates,
+hence CMLP colvar is considerably faster than ANN function composed with POSITION colvars.
+
+\par Examples
+
+Assume we want to model a multilayer perceptron with three layers of sizes [3, 2, 1]
+(note that the size of the first layer is always necesarily a multiple of 3 since there are three input values per atom).
+Further, assume there should be the RELU activation function in Layer 1 and the SIGMOID activation function in
+Layer 2.
+
+Further assume the weight matrix connecting layers 0 and 1 is
+\f{equation*}{
+W_{01} = [[1,2,3], [4,5,6]],
+\f}
+and the weight matrix connecting layers 1 and 2 is
+\f{equation*}{
+W_{12} = [[7,8]].
+\f}
+
+Finaly, let the bias vetors for layers 1 and 2 be the following
+\f{align*}{
+  b_1 &= [9, 10]\\
+  b_2 &= [11].
+\f}
+
+Then the following PLUMED code constructs the described multilayer perceptron whose input consists of the three coordinates x,y,z of atom 4
+multiplied by \f$0.1\f$.
 
 \plumedfile
 CMLP ...
-LABEL=ann_cv1
-ATOMS=1,4,12
-RESCALE=0.100041
+LABEL=ann_cv
+ATOMS=4
+RESCALE=0.1
 SIZES=3,2,1
-ACTIVATIONS=TANH,TANH
-WEIGHTS0=1.35345,2.353535,-3.242425,4.23424,5.25425,6.252343
-WEIGHTS1=0.125232,0.224323
-BIASES0=-0.005190,0.001307
-BIASES1=0.213432
+ACTIVATIONS=RELU,SIGMOID
+WEIGHTS0=1,2,3,4,5,6
+WEIGHTS1=7,8
+BIASES0=9,10
+BIASES1=11
 ... CMLP
 \endplumedfile
+
+To access its output component, we use "ann_cv.node-0". If there were more components in the output layer,
+we could access them by "ann_cv.node-1", "ann_cv.node-2", etc.
 
 */
 //+ENDPLUMEDOC
 
-class ColvarMLP : public Colvar
+class ColvarMLP : public colvar::Colvar
 {
 private:
-    bool useDouble;
-    std::vector<AtomNumber> atoms;
-    std::unique_ptr<Network<double>> dNet;
-    std::unique_ptr<Network<float>> fNet;
+  bool useDouble;
+  std::vector<AtomNumber> atoms;
+  std::unique_ptr<MultilayerPerceptron<double>> dNet;
+  std::unique_ptr<MultilayerPerceptron<float>> fNet;
 
-    std::vector<AtomNumber> parseAtoms();
-    bool readFlag(std::string flagName);
-    template <typename Scalar>
-    std::unique_ptr<Network<Scalar>> parseNetwork();
+  bool readFlag(const std::string& flagName);
+  std::vector<AtomNumber> parseAtoms();
+  template <typename Scalar>
+  std::unique_ptr<MultilayerPerceptron<Scalar>> parseNetwork();
 
-    template <typename Scalar>
-    void calculateByPrecision(Network<Scalar>& net);
+  template <typename Scalar>
+  void calculate(MultilayerPerceptron<Scalar>& net);
 public:
-    static void registerKeywords(Keywords& keys);
-    ColvarMLP(const ActionOptions& ao);
-    virtual void calculate();
+  static void registerKeywords(Keywords& keys);
+  explicit ColvarMLP(const ActionOptions& ao);
+  virtual void calculate();
 };
 
 PLUMED_REGISTER_ACTION(ColvarMLP,"CMLP")
 
 void ColvarMLP::registerKeywords( Keywords& keys ) {
-    Colvar::registerKeywords(keys);
+  Colvar::registerKeywords(keys);
 
-    keys.add("atoms","ATOMS","a list of atoms whose coordinates are input of the layer");
-    keys.add("optional", "RESCALE", "a coefficient the input coordinates are multiplied by");
+  keys.add("atoms","ATOMS","a list of atoms involved in the collectiva variable");
+  keys.add("optional", "RESCALE", "a coefficient the input coordinates are multiplied by");
+  keys.addFlag("DOUBLE_PREC", false, "whether to use double precision or not");
+  keys.add("compulsory", "ACTIVATIONS", "array of activation functions in individual layers, F_1, ..., F_N; options TANH, LINEAR, RELU, SIGMOID");
+  keys.add("compulsory", "SIZES", "array of sizes of individual layers, S_0, ..., S_n (S_0 should equal to three times the number of atoms)");
+  keys.add("numbered", "WEIGHTS", "array of flattened weight matrices W_1, ..., W_N; matrix W_L of size S_{L-1} x S_L connects layers L-1 and L");
+  keys.add("numbered", "BIASES", "array of bias vectors B_1, ..., B_N; vector B_L is added to the inner potential of layer L");
 
-    keys.addFlag("DOUBLE_PREC", false, "whether to use double precision or not");
-    keys.add("compulsory", "ACTIVATIONS", "array of activation functions in individual layers, F_1, ..., F_N; options TANH, LINEAR, RELU, SIGMOID");
-    keys.add("compulsory", "SIZES", "array of sizes of individual layers, S_0, ..., S_n (S_0 should equal to three times the number of atoms)");
-    keys.add("numbered", "WEIGHTS", "array of flattened weight matrices W_1, ..., W_N; matrix W_L of size S_{L-1} x S_L connects layers L-1 and L");
-    keys.add("numbered", "BIASES", "array of bias vectors B_1, ..., B_N; vector B_L is added to the inner potential of layer L");
-
-    keys.addOutputComponent("node", "default", "components of MLP outputs");
+  keys.addOutputComponent("node", "default", "components representing the output nodes of the MLP");
 }
 
 std::vector<AtomNumber> ColvarMLP::parseAtoms() {
-    std::vector<AtomNumber> atoms;
-    parseAtomList("ATOMS",atoms);
-    return atoms;
+  std::vector<AtomNumber> atom_buffer;
+  parseAtomList("ATOMS", atom_buffer);
+  return atom_buffer;
 }
 
-bool ColvarMLP::readFlag(std::string flagName) {
-    bool flag = false;
-    parseFlag("DOUBLE_PREC", flag);
-    return flag;
+bool ColvarMLP::readFlag(const std::string& flagName) {
+  bool flag = false;
+  parseFlag(flagName, flag);
+  return flag;
 }
 
 template <typename Scalar>
-std::unique_ptr<Network<Scalar>> ColvarMLP::parseNetwork() {
-    /* sizes of all the layers including the input layer */
-    std::vector<int> layerSizes;
-    parseVector("SIZES", layerSizes);
-    
-    int numLayers = layerSizes.size();
+std::unique_ptr<MultilayerPerceptron<Scalar>> ColvarMLP::parseNetwork() {
+  /* sizes of all the layers including the input layer */
+  std::vector<int> layerSizes;
+  parseVector("SIZES", layerSizes);
 
-    std::vector<std::string> activationNames;
-    std::vector<Scalar (*)(Scalar)> fns{Network<Scalar>::linear};
-    std::vector<Scalar (*)(Scalar)> d_fns{Network<Scalar>::d_linear};
+  if (layerSizes.size() < 2) error("There should be at least two layers.");
+  if (layerSizes.front() != atoms.size() * 3) {
+    error("The input layer should contain 3 times as many nodes as there are input atoms.");
+  }
 
-    /* activations in all the layers except for the input layer */
-    parseVector("ACTIVATIONS", activationNames);
-    for (auto& name : activationNames) {
-        if (name == "TANH") {
-            fns.push_back(Network<Scalar>::tanh);
-            d_fns.push_back(Network<Scalar>::d_tanh);
-        } else if (name == "LINEAR") {
-            fns.push_back(Network<Scalar>::linear);
-            d_fns.push_back(Network<Scalar>::d_linear);
-        } else if (name == "SIGMOID") {
-            fns.push_back(Network<Scalar>::sigmoid);
-            d_fns.push_back(Network<Scalar>::d_sigmoid);
-        } else if (name == "RELU") {
-            fns.push_back(Network<Scalar>::relu);
-            d_fns.push_back(Network<Scalar>::d_relu);
-        } else {
-            error("Unknown activation: " + name + ".");
-        }
+  int numLayers = layerSizes.size();
+
+  std::vector<std::string> activationNames;
+  std::vector<Scalar (*)(Scalar)> fns{MultilayerPerceptron<Scalar>::linear};
+  std::vector<Scalar (*)(Scalar)> d_fns{MultilayerPerceptron<Scalar>::d_linear};
+
+  /* activations in all the layers except for the input layer */
+  parseVector("ACTIVATIONS", activationNames);
+  for (auto& name : activationNames) {
+    if (name == "TANH") {
+      fns.push_back(MultilayerPerceptron<Scalar>::tanh);
+      d_fns.push_back(MultilayerPerceptron<Scalar>::d_tanh);
+    } else if (name == "LINEAR") {
+      fns.push_back(MultilayerPerceptron<Scalar>::linear);
+      d_fns.push_back(MultilayerPerceptron<Scalar>::d_linear);
+    } else if (name == "SIGMOID") {
+      fns.push_back(MultilayerPerceptron<Scalar>::sigmoid);
+      d_fns.push_back(MultilayerPerceptron<Scalar>::d_sigmoid);
+    } else if (name == "RELU") {
+      fns.push_back(MultilayerPerceptron<Scalar>::relu);
+      d_fns.push_back(MultilayerPerceptron<Scalar>::d_relu);
+    } else {
+      error("Unknown activation function: " + name + ".");
     }
-    
+  }
 
-    if (static_cast<int>(activationNames.size()) != numLayers - 1) error("Wrong number of activation functions given.");
+  if (static_cast<int>(activationNames.size()) != numLayers - 1) {
+    error("Wrong number of activation functions given. There should be one for each non-input layer.");
+  }
 
-    Scalar rescaleFactor = 1;
-    std::unique_ptr<Network<Scalar>> dNet;
-    parse("RESCALE", rescaleFactor);
+  Scalar rescaleFactor = 1;
+  parse("RESCALE", rescaleFactor);
 
-    std::unique_ptr<Network<Scalar>> net(new Network<Scalar>(layerSizes, fns, d_fns, rescaleFactor));
+  std::unique_ptr<MultilayerPerceptron<Scalar>> net(new MultilayerPerceptron<Scalar>(layerSizes, fns, d_fns, rescaleFactor));
 
-    std::vector<Scalar> buffer;
-    for (int l = 0; l < numLayers-1; ++l) {
-        if(!parseNumberedVector("WEIGHTS", l, buffer)) error("Not enough weight matrices provided.");
-        if (static_cast<int>(buffer.size()) != layerSizes[l] * layerSizes[l+1]) error("Invalid number of weights between layers " + to_string(l) + " and " + to_string(l+1) + ".");
-        net->setWeights(l, buffer);
+  std::vector<Scalar> buffer;
+  for (int l = 0; l < numLayers-1; ++l) {
+    if(!parseNumberedVector("WEIGHTS", l, buffer)) error("Not enough weight matrices provided.");
+    if (static_cast<int>(buffer.size()) != layerSizes[l] * layerSizes[l+1]) {
+      error("Invalid number of weights between layers " + std::to_string(l) + " and " + std::to_string(l+1) + ".");
     }
+    net->setWeights(l, buffer);
+  }
 
-    for (int l = 0; l < numLayers-1; ++l) {
-        if(!parseNumberedVector("BIASES", l, buffer)) error("Not enough bias vectors provided.");
-        if (static_cast<int>(buffer.size()) != layerSizes[l+1]) error("Invalid number of biases in layer " + to_string(l+1) + ".");
-        net->setBiases(l+1, buffer);
-    }
+  for (int l = 1; l < numLayers; ++l) {
+    if(!parseNumberedVector("BIASES", l-1, buffer)) error("Not enough bias vectors provided.");
+    if (static_cast<int>(buffer.size()) != layerSizes[l]) error("Invalid number of biases in layer " + std::to_string(l) + ".");
+    net->setBiases(l, buffer);
+  }
 
-    return net;
+  return net;
 }
 
 ColvarMLP::ColvarMLP(const ActionOptions& ao)
-    : PLUMED_COLVAR_INIT(ao)
-    , useDouble(readFlag("DOUBLE_PREC"))
-    , atoms(parseAtoms())
-    , dNet(useDouble ? parseNetwork<double>() : nullptr)
-    , fNet(useDouble ? nullptr : parseNetwork<float>())
+  : PLUMED_COLVAR_INIT(ao)
+  , useDouble(readFlag("DOUBLE_PREC"))
+  , atoms(parseAtoms())
+  , dNet(useDouble ? parseNetwork<double>() : nullptr)
+  , fNet(useDouble ? nullptr : parseNetwork<float>())
 {
-    int outputSize = useDouble ? dNet->outputSize() : fNet->outputSize();
+  int outputSize = useDouble ? dNet->outputSize() : fNet->outputSize();
 
-    for (int i = 0; i < outputSize; ++i) {
-        addComponentWithDerivatives("node-" + to_string(i));
-    }
+  for (int i = 0; i < outputSize; ++i) {
+    addComponentWithDerivatives("node-" + std::to_string(i));
+    componentIsNotPeriodic("node-" + std::to_string(i));
+  }
 
-    requestAtoms(atoms);
+  requestAtoms(atoms);
 
-    checkRead();
-
-    getPntrToValue()->setNotPeriodic();
+  checkRead();
 }
 
 void ColvarMLP::calculate() {
-    if (useDouble) calculateByPrecision<double>(*dNet);
-    else calculateByPrecision<float>(*fNet);
+  if (useDouble) calculate<double>(*dNet);
+  else calculate<float>(*fNet);
 }
 
 template<typename Scalar>
-void ColvarMLP::calculateByPrecision(Network<Scalar>& net) {
-    vector<Scalar>& input = net.getInput();
+void ColvarMLP::calculate(MultilayerPerceptron<Scalar>& net) {
+  std::vector<Scalar>& input = net.getInput();
 
-    vector<Vector> positions = getPositions();
-    for (unsigned int i = 0; i < positions.size(); i++) {
-        input[3 * i + 0] = positions[i][0];
-        input[3 * i + 1] = positions[i][1];
-        input[3 * i + 2] = positions[i][2];
+  std::vector<Vector> positions = getPositions();
+  for (unsigned int i = 0; i < positions.size(); i++) {
+    input[3 * i + 0] = positions[i][0];
+    input[3 * i + 1] = positions[i][1];
+    input[3 * i + 2] = positions[i][2];
+  }
+
+  const std::vector<Scalar>& output = net.computeOutput();
+  for (uint i = 0; i < output.size(); ++i) {
+    std::string compName = "node-" + std::to_string(i);
+    Value* comp = getPntrToComponent(compName);
+
+    comp->set(output[i]);
+    const std::vector<Scalar>& derivatives = net.computeGradient(i);
+
+    for (unsigned int j = 0; j < positions.size(); j++) {
+      setAtomsDerivatives(comp, j, { derivatives[3 * j], derivatives[3 * j + 1], derivatives[3 * j + 2]});
     }
 
-    const vector<Scalar>& output = net.computeOutput();
-    for (uint i = 0; i < output.size(); ++i) {
-        std::string compName = "node-" + to_string(i);
-        Value* comp = getPntrToComponent(compName);
-     
-        comp->set(output[i]);
-        const vector<Scalar>& derivatives = net.computeGradient(i);
-
-        for (unsigned int i = 0; i < positions.size(); i++) {
-            setAtomsDerivatives(comp, i, { derivatives[3 * i], derivatives[3 * i + 1], derivatives[3 * i + 2]});
-            // comp->setDerivative(i, { derivatives[3 * i], derivatives[3 * i + 1], derivatives[3 * i + 2]});
-        }
-    }
-
-    setBoxDerivativesNoPbc();
+    setBoxDerivativesNoPbc(comp);
+  }
 }
 
+} // namespace annfunc
 } // namespace colvar
 } // namespace PLMD

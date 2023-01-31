@@ -126,17 +126,24 @@ cdef class Plumed:
          self.c_plumed.cmd_float( ckey, val)
      cdef cmd_int(self, ckey, int val):
          self.c_plumed.cmd_int( ckey, val)
+     cdef cmd_mpi(self, ckey, val):
+         import mpi4py.MPI as MPI
+         cdef size_t comm_addr = MPI._addressof(val)
+         self.c_plumed.cmd_mpi( ckey, <const void*>comm_addr)
      def cmd( self, key, val=None ):
          cdef bytes py_bytes = key.encode()
          cdef char* ckey = py_bytes
          cdef char* cval
          if val is None :
             self.c_plumed.cmd( ckey)
-         elif isinstance(val, (int,long) ):
+            return
+         if isinstance(val, (int,long) ):
             self.cmd_int(ckey, val)
-         elif isinstance(val, float ) :
+            return
+         if isinstance(val, float ) :
             self.cmd_float(ckey, val)
-         elif HAS_NUMPY and isinstance(val, np.ndarray) :
+            return
+         if HAS_NUMPY and isinstance(val, np.ndarray) :
             # See https://numpy.org/doc/stable/user/basics.types.html
             if( val.dtype==np.double):
                self.cmd_ndarray_double(ckey, val)
@@ -146,7 +153,8 @@ cdef class Plumed:
                self.cmd_ndarray_long(ckey, val)
             else :
                raise ValueError("ndarrys should be np.double, np.intc, or np.int_")
-         elif isinstance(val, array.array) :
+            return
+         if isinstance(val, array.array) :
             if( (val.typecode=="d" or val.typecode=="f") and val.itemsize==8):
                self.cmd_array_double(ckey, val)
             elif( (val.typecode=="i" or val.typecode=="I") ) :
@@ -155,13 +163,18 @@ cdef class Plumed:
                self.cmd_array_long(ckey, val)
             else :
                raise ValueError("ndarrays should be double (size=8), int, or long")
-         elif isinstance(val, str ) :
-              py_bytes = val.encode()
-              cval = py_bytes
-              self.c_plumed.cmd( ckey, <const char*>cval )
-         else :
-            raise ValueError("Unknown value type ({})".format(str(type(val))))
-
+            return
+         if isinstance(val, str ) :
+            py_bytes = val.encode()
+            cval = py_bytes
+            self.c_plumed.cmd( ckey, <const char*>cval )
+            return
+         if 'mpi4py' in sys.modules:
+            import mpi4py.MPI as MPI
+            if isinstance(val, MPI.Comm):
+              self.cmd_mpi(ckey, val)
+              return
+         raise ValueError("Unknown value type ({})".format(str(type(val))))
 
 class FormatError(Exception):
     """Custom error reported by read_as_pandas.
@@ -503,6 +516,95 @@ def write_pandas(df,file_or_path=None):
         for j in df.columns:
             file_or_path.write(" "+str(df[j][i]))
         file_or_path.write("\n")
+
+def hills_time_average(hills, tofile=None, *, t0=None, t1=None, frac0=None, frac1=None, inplace=False):
+    """Compute a time-averaged hills file.
+
+       hills: dataframe containing a hills file, or file, or filename
+
+       tofile: write the resulting dataframe to a file or filename
+
+       t0: initial time for averaging
+
+       t1: final time for averaging
+
+       frac0: initial fraction for averaging
+
+       frac1: final fraction for averaging
+
+       inplace: pass true to avoid copying the dataframe (for very large dataframes)
+
+       Returns
+       -------
+
+       if inplace=False and tofile=None (default): a modified copy of the dataframe
+       if inplace=True or tofile!=None: None
+
+       This tool takes as an input a pandas dataframe read from a HILLS file and
+       returns an equivalent dataframe where Gaussian heights have been scaled
+       with a windowing function so as to effectively result in a time-averaged
+       potential. By default, the average is taken along to entire list based on the
+       value of the time column. The averaging windows can be specified in two ways:
+       - using the time field, from t0 to t1. If t0 (t1) is omitted, its default is
+         to be set to np.min(hills.time) (np.max(hills.time))
+       - using the index of the hill, from frac0 to frac1 specified as a fraction
+         of the entire length; that is, frac0=0.5 implies avering from the mid of the
+         simulation. If frac0 (frac1) is omitted, its default is to be set to 0.0 (1.0)
+
+       If tofile is specified, nothing is returned and the resulting dataframe is written
+       on file.
+
+       Examples
+       --------
+
+       plumed.hills_time_average("HILLS","HILLSOUT") # time average along entire file
+
+       plumed.hills_time_average("HILLS","HILLSOUT1",t0=100,t1=200) # time average between 100 and 200 ps
+
+       plumed.hills_time_average("HILLS","HILLSOUT2",frac0=0.5) # time average in second half of the file
+
+       df=plumed.hills_time_average("HILLS") # time average and return dataframe
+
+       df=plumed.read_as_pandas("HILLS") # first read hills file
+       df=plumed.hills_time_average(df) # then perform time average
+
+
+    """
+    import pandas as pd
+    if not isinstance(hills,pd.DataFrame):
+        hills=read_as_pandas(hills)
+    elif not inplace:
+        hills=hills.copy()
+
+    use_time = (t0 is not None or t1 is not None)
+    use_index = (frac0 is not None or frac1 is not None)
+
+    if use_time and use_index:
+        raise ValueError("cannot use simultaneously time and fraction")
+
+    if not use_index and not use_time:
+        use_time=True
+
+    if use_time:
+        if t0 is None:
+            t0=np.min(hills.time)
+        if t1 is None:
+            t1=np.max(hills.time)
+        w=np.clip((t1-hills.time)/(t1-t0),0.0,1.0)
+    else:
+        if frac0 is None:
+           frac0=0
+        if frac1 is None:
+           frac1=1.0
+        i0=int(len(hills)*frac0)
+        i1=int(len(hills)*frac1)
+        w=np.hstack((np.ones(i0),np.linspace(1.0,0.0,i1-i0),np.zeros(len(hills)-i1)))
+    hills.height*=w
+
+    if tofile is not None:
+        write_pandas(hills,tofile)
+    elif not inplace:
+        return hills
 
 def _guessplumedroot(kernel=None):
     """Guess plumed root.

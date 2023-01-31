@@ -31,11 +31,13 @@ namespace opes {
 
 //+PLUMEDOC OPES_BIAS OPES_EXPANDED
 /*
-On-the-fly probability enhanced sampling (\ref OPES "OPES") with expanded ensembles target distribution (replica-exchange-like) \cite Invernizzi2020unified.
+On-the-fly probability enhanced sampling with expanded ensembles for the target distribution.
+
+This method is similar to the OPES method (\ref OPES "OPES") with expanded ensembles target distribution (replica-exchange-like) \cite Invernizzi2020unified.
 
 An expanded ensemble is obtained by summing a set of ensembles at slightly different termodynamic conditions, or with slightly different Hamiltonians.
-Such ensembles can be sampled via methods like replica exchange, or this OPES_EXPANDED bias action.
-A typical example is a mutlticanonical simulation, in which a whole range of temperatures is sampled instead of a single one.
+Such ensembles can be sampled via methods like replica exchange, or this \ref OPES_EXPANDED bias action.
+A typical example is a multicanonical simulation, in which a whole range of temperatures is sampled instead of a single one.
 
 In oreder to define an expanded target ensemble we use \ref EXPANSION_CV "expansion collective variables" (ECVs), \f$\Delta u_\lambda(\mathbf{x})\f$.
 The bias at step \f$n\f$ is
@@ -52,28 +54,28 @@ Its value is also needed for restarting a simulation.
 You can store the instantaneous \f$\Delta F_n(\lambda)\f$ estimates also in a more readable format using STATE_WFILE and STATE_WSTRIDE.
 Restart can be done either from a DELTAFS file or from a STATE_RFILE, it is equivalent.
 
-Contrary to \ref OPES_METAD, OPES_EXPANDED does not use kernel density estimation.
+Contrary to \ref OPES_METAD, \ref OPES_EXPANDED does not use kernel density estimation.
 
 \par Examples
 
 \plumedfile
 # simulate multiple temperatures, as in parallel tempering
 ene: ENERGY
-ecv: ECV_MULTITHERMAL ARG=ene MAX_TEMP=1000
+ecv: ECV_MULTITHERMAL ARG=ene TEMP_MAX=1000
 opes: OPES_EXPANDED ARG=ecv.* PACE=500
 PRINT FILE=COLVAR STRIDE=500 ARG=ene,opes.bias
 \endplumedfile
 
 You can easily combine multiple ECVs.
-The OPES_EXPANDED bias will create a multidimensional target grid to sample all the combinations.
+The \ref OPES_EXPANDED bias will create a multidimensional target grid to sample all the combinations.
 
 \plumedfile
 # simulate multiple temperatures while biasing a CV
 ene: ENERGY
 dst: DISTANCE ATOMS=1,2
 
-ecv1: ECV_MULTITHERMAL ARG=ene SET_ALL_TEMPS=200,300,500,1000
-ecv2: ECV_UMBRELLAS_LINE ARG=dst MIN_CV=1.2 MAX_CV=4.3 SIGMA=0.5
+ecv1: ECV_MULTITHERMAL ARG=ene TEMP_SET_ALL=200,300,500,1000
+ecv2: ECV_UMBRELLAS_LINE ARG=dst CV_MIN=1.2 CV_MAX=4.3 SIGMA=0.5
 opes: OPES_EXPANDED ARG=ecv1.*,ecv2.* PACE=500 OBSERVATION_STEPS=1
 
 PRINT FILE=COLVAR STRIDE=500 ARG=ene,dst,opes.bias
@@ -89,16 +91,16 @@ vol: VOLUME
 ecv_mtp: ECV_MULTITHERMAL_MULTIBARIC ...
   ARG=ene,vol
   TEMP=300
-  MIN_TEMP=200
-  MAX_TEMP=800
+  TEMP_MIN=200
+  TEMP_MAX=800
   PRESSURE=0.06022140857*1000 #1 kbar
-  MIN_PRESSURE=0
-  MAX_PRESSURE=0.06022140857*2000 #2 kbar
+  PRESSURE_MIN=0
+  PRESSURE_MAX=0.06022140857*2000 #2 kbar
 ...
 
 cv1: DISTANCE ATOMS=1,2
 cv2: DISTANCE ATOMS=3,4
-ecv_umb: ECV_UMBRELLAS_LINE ARG=cv1,cv2 TEMP=300 MIN_CV=0.1,0.1 MAX_CV=1.5,1.5 SIGMA=0.2 BARRIER=70
+ecv_umb: ECV_UMBRELLAS_LINE ARG=cv1,cv2 TEMP=300 CV_MIN=0.1,0.1 CV_MAX=1.5,1.5 SIGMA=0.2 BARRIER=70
 
 opes: OPES_EXPANDED ARG=(ecv_.*) PACE=500 WALKERS_MPI PRINT_STRIDE=1000
 
@@ -113,13 +115,12 @@ class OPESexpanded : public bias::Bias {
 
 private:
   bool isFirstStep_;
-  bool afterCalculate_;
   unsigned NumOMP_;
   unsigned NumParallel_;
   unsigned rank_;
   unsigned NumWalkers_;
   unsigned walker_rank_;
-  unsigned long counter_;
+  unsigned long long counter_;
   std::size_t ncv_;
 
   std::vector<const double *> ECVs_;
@@ -140,7 +141,6 @@ private:
   std::vector<double> deltaF_;
   std::vector<double> diff_;
   double rct_;
-  double current_bias_;
 
   std::vector<double> all_deltaF_;
   std::vector<int> all_size_;
@@ -186,11 +186,11 @@ void OPESexpanded::registerKeywords(Keywords& keys)
   keys.add("compulsory","PACE","how often the bias is updated");
   keys.add("compulsory","OBSERVATION_STEPS","100","number of unbiased initial PACE steps to collect statistics for initialization");
 //DeltaFs and state files
-  keys.add("compulsory","FILE","DELTAFS","a file with the estimate of the relative \\f$\\Delta F\\f$ for each component of the target and of the global \\f$c(t)\\f$");
+  keys.add("compulsory","FILE","DELTAFS","a file with the estimate of the relative Delta F for each component of the target and of the global c(t)");
   keys.add("compulsory","PRINT_STRIDE","100","stride for printing to DELTAFS file, in units of PACE");
   keys.add("optional","FMT","specify format for DELTAFS file");
-  keys.add("optional","STATE_RFILE","read from this file the \\f$\\Delta F\\f$ estimates and all the info needed to RESTART the simulation");
-  keys.add("optional","STATE_WFILE","write to this file the \\f$\\Delta F\\f$ estimates and all the info needed to RESTART the simulation");
+  keys.add("optional","STATE_RFILE","read from this file the Delta F estimates and all the info needed to RESTART the simulation");
+  keys.add("optional","STATE_WFILE","write to this file the Delta F estimates and all the info needed to RESTART the simulation");
   keys.add("optional","STATE_WSTRIDE","number of MD steps between writing the STATE_WFILE. Default is only on CPT events (but not all MD codes set them)");
   keys.addFlag("STORE_STATES",false,"append to STATE_WFILE instead of ovewriting it each time");
 //miscellaneous
@@ -209,7 +209,6 @@ void OPESexpanded::registerKeywords(Keywords& keys)
 OPESexpanded::OPESexpanded(const ActionOptions&ao)
   : PLUMED_BIAS_INIT(ao)
   , isFirstStep_(true)
-  , afterCalculate_(false)
   , counter_(0)
   , ncv_(getNumberOfArguments())
   , deltaF_size_(0)
@@ -240,7 +239,7 @@ OPESexpanded::OPESexpanded(const ActionOptions&ao)
   if(wStateStride_!=0 || storeOldStates_)
     plumed_massert(stateFileName.length()>0,"filename for storing simulation status not specified, use STATE_WFILE");
   if(wStateStride_>0)
-    plumed_massert(wStateStride_>stride_,"STATE_WSTRIDE is in units of MD steps, thus should be a multiple of PACE");
+    plumed_massert(wStateStride_>=(int)stride_,"STATE_WSTRIDE is in units of MD steps, thus should be a multiple of PACE");
   if(stateFileName.length()>0 && wStateStride_==0)
     wStateStride_=-1;//will print only on CPT events (checkpoints set by some MD engines, like gromacs)
 
@@ -431,7 +430,7 @@ OPESexpanded::OPESexpanded(const ActionOptions&ao)
       plumed_merror("RESTART requested, but file '"+restartFileName+"' was not found!\n  Set RESTART=NO or provide a restart file");
     if(NumWalkers_>1) //make sure that all walkers are doing the same thing
     {
-      std::vector<unsigned long> all_counter(NumWalkers_);
+      std::vector<unsigned long long> all_counter(NumWalkers_);
       if(comm.Get_rank()==0)
         multi_sim_comm.Allgather(counter_,all_counter);
       comm.Bcast(all_counter,0);
@@ -579,12 +578,10 @@ void OPESexpanded::calculate()
   }
 
 //set bias and forces
-  current_bias_=-kbt_*(diffMax+std::log(sum/deltaF_size_));
-  setBias(current_bias_);
+  const double bias=-kbt_*(diffMax+std::log(sum/deltaF_size_));
+  setBias(bias);
   for(unsigned j=0; j<ncv_; j++)
     setOutputForce(j,kbt_*der_sum_cv[j]/sum);
-
-  afterCalculate_=true;
 }
 
 void OPESexpanded::update()
@@ -614,11 +611,9 @@ void OPESexpanded::update()
     }
 
     //update averages
-    //since current_bias_ is used, calculate() must always run before update()
-    plumed_massert(afterCalculate_,"OPESexpanded::update() must be called after OPESexpanded::calculate() to work properly");
-    afterCalculate_=false;
+    const double current_bias=getOutputQuantity(0); //the first value is always the bias
     if(NumWalkers_==1)
-      updateDeltaF(current_bias_);
+      updateDeltaF(current_bias);
     else
     {
       std::vector<double> cvs(ncv_);
@@ -628,7 +623,7 @@ void OPESexpanded::update()
       std::vector<double> all_cvs(NumWalkers_*ncv_);
       if(comm.Get_rank()==0)
       {
-        multi_sim_comm.Allgather(current_bias_,all_bias);
+        multi_sim_comm.Allgather(current_bias,all_bias);
         multi_sim_comm.Allgather(cvs,all_cvs);
       }
       comm.Bcast(all_bias,0);
@@ -679,7 +674,7 @@ void OPESexpanded::update()
         comm.Sum(sum);
       const double new_bias=-kbt_*(diffMax+std::log(sum/deltaF_size_));
       //accumulate work
-      work_+=new_bias-current_bias_;
+      work_+=new_bias-current_bias;
       getPntrToComponent("work")->set(work_);
     }
   }
@@ -726,6 +721,12 @@ void OPESexpanded::init_pntrToECVsClass()
 
 void OPESexpanded::init_linkECVs()
 {
+  //TODO It should be possible to make all of this more straightforward (and probably also faster):
+  //     - get rid of index_k_, making it trivial for each ECV
+  //     - store the ECVs_ and derECVs_ vectors here as a contiguous vector, and use pointers in the ECV classes
+  //     Some caveats:
+  //     - ECVmultiThermalBaric has a nontrivial index_k_ to avoid duplicates. use duplicates instead
+  //     - can the ECVs be MPI parallel or it's too complicated?
   plumed_massert(deltaF_size_>0,"must set deltaF_size_ before calling init_linkECVs()");
   if(NumParallel_==1)
     deltaF_.resize(deltaF_size_);
