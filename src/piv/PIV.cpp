@@ -188,7 +188,8 @@ private:
   ForwardDecl<Stopwatch> stopwatch_fwd;
   Stopwatch& stopwatch=*stopwatch_fwd;
   int updatePIV;
-  unsigned Nprec,Natm,Nlist,NLsize;
+  size_t Nprec;
+  unsigned Natm,Nlist,NLsize;
   double Fvol,Vol0,m_PIVdistance;
   std::string ref_file;
   NeighborList *nlall;
@@ -731,7 +732,7 @@ void PIV::calculate()
   static std:: vector<std:: vector<int> > Atom1(Nlist);
   std:: vector<std:: vector<int> > A0(Nprec);
   std:: vector<std:: vector<int> > A1(Nprec);
-  unsigned stride=1;
+  size_t stride=1;
   unsigned rank=0;
 
   if(!serial) {
@@ -968,8 +969,8 @@ void PIV::calculate()
           // Gather the full Ordering Vector (occupancies). This is what we need to build the PIV
           comm.Allgather(&OrdVec[0],Nprec,&OrdVecAll[0],Nprec);
           // Gather the vectors of atom pairs to keep track of the idexes for the forces
-          comm.Allgatherv(&Atom0F[0],Atom0F.size(),&Atom0FAll[0],&Vdim[0],&Vpos[0]);
-          comm.Allgatherv(&Atom1F[0],Atom1F.size(),&Atom1FAll[0],&Vdim[0],&Vpos[0]);
+          comm.Allgatherv(Atom0F.data(),Atom0F.size(),&Atom0FAll[0],&Vdim[0],&Vpos[0]);
+          comm.Allgatherv(Atom1F.data(),Atom1F.size(),&Atom1FAll[0],&Vdim[0],&Vpos[0]);
 
           // Reconstruct the full vectors from collections of Allgathered parts (this is a serial step)
           // This is the tricky serial step, to assemble together PIV and atom-pair info from head-tail big vectors

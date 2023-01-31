@@ -26,16 +26,20 @@
 
 namespace PLMD {
 
-using namespace std;
-
 const double epsilon=1e-14;
 
 void LatticeReduction::sort(Vector v[3]) {
   const double onePlusEpsilon=(1.0+epsilon);
-  for(int i=0; i<3; i++) for(int j=i+1; j<3; j++) if(modulo2(v[i])>modulo2(v[j])) {
-        Vector x=v[i]; v[i]=v[j]; v[j]=x;
+  double m[3];
+  m[0]=modulo2(v[0]);
+  m[1]=modulo2(v[1]);
+  m[2]=modulo2(v[2]);
+  for(int i=0; i<3; i++) for(int j=i+1; j<3; j++) if(m[i]>m[j]) {
+        std::swap(v[i],v[j]);
+        std::swap(m[i],m[j]);
       }
-  for(int i=0; i<2; i++) plumed_assert(modulo2(v[i])<=modulo2(v[i+1])*onePlusEpsilon);
+  plumed_assert(m[0]<=m[1]*onePlusEpsilon);
+  plumed_assert(m[1]<=m[2]*onePlusEpsilon);
 }
 
 void LatticeReduction::reduce(Vector&a,Vector&b) {
@@ -45,10 +49,10 @@ void LatticeReduction::reduce(Vector&a,Vector&b) {
   unsigned counter=0;
   while(true) {
     if(mb>ma) {
-      Vector t(a); a=b; b=t;
-      double mt(ma); ma=mb; mb=mt;
+      std::swap(a,b);
+      std::swap(ma,mb);
     }
-    a-=b*floor(dotProduct(a,b)/modulo2(b)+0.5);
+    a-=b*floor(dotProduct(a,b)/mb+0.5);
     ma=modulo2(a);
     if(mb<=ma*onePlusEpsilon) break;
     counter++;
@@ -56,10 +60,10 @@ void LatticeReduction::reduce(Vector&a,Vector&b) {
       plumed_assert(!std::isnan(ma));
       plumed_assert(!std::isnan(mb));
     }
-    if(counter%10000==0) fprintf(stderr,"WARNING: LatticeReduction::reduce stuck after %u iterations\n",counter);
+    if(counter%10000==0) std::fprintf(stderr,"WARNING: LatticeReduction::reduce stuck after %u iterations\n",counter);
   }
 
-  Vector t(a); a=b; b=t;
+  std::swap(a,b);
 }
 
 void LatticeReduction::reduce2(Vector&a,Vector&b,Vector&c) {
@@ -145,7 +149,7 @@ void LatticeReduction::reduceFast(Tensor&t) {
       }
     if(modulo2(best)*onePlusEpsilon>=modulo2(v[2])) break;
     counter++;
-    if(counter%10000==0) fprintf(stderr,"WARNING: LatticeReduction::reduceFast stuck after %u iterations\n",counter);
+    if(counter%10000==0) std::fprintf(stderr,"WARNING: LatticeReduction::reduceFast stuck after %u iterations\n",counter);
     v[2]=best;
   }
   sort(v);

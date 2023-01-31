@@ -95,7 +95,6 @@ Required software:
 * C/c++ compiler (c++11 support is required as of version 2.4).
 * A modern version of the `patch` command line tool.
 * Support for POSIX library `dirent.h`.
-* `xxd` (present in most UNIX distributions).
 
 Suggested software (libraries are checked by `./configure` and enabled if available):
 
@@ -142,3 +141,4 @@ If you compiled your own documentation, paths to the installed documentation can
 A sample modulefile with environment variable will be placed in
 `$HOME/opt/lib/plumed/src/lib/modulefile`. This can be useful if you want to
 install multiple PLUMED versions side by side and select them with env modules.
+

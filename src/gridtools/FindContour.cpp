@@ -99,8 +99,6 @@ private:
   OFile of;
   double lenunit;
   std::string fmt_xyz;
-/// The data is stored in a grid
-  vesselbase::StoreDataVessel* mydata;
 public:
   static void registerKeywords( Keywords& keys );
   explicit FindContour(const ActionOptions&ao);
