@@ -19,7 +19,7 @@ freely, subject to the following restrictions:
 +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++ */
 
 #include "Sasa.h"
-#include "ActionRegister.h"
+#include "core/ActionRegister.h"
 #include "core/PlumedMain.h"
 #include "core/GenericMolInfo.h"
 #include "core/ActionSet.h"
@@ -138,6 +138,7 @@ private:
   unsigned nl_update;
   int firstStepFlag;
   double Ti;
+  // cppcheck-suppress duplInheritedMember
   std::vector<AtomNumber> atoms;
   vector < vector < std::string > > AtomResidueName;
   vector < vector < double > > LCPOparam;

@@ -5,11 +5,15 @@
 # system.
 # If you modify configure.ac, remember to run
 # autoconf and then commit both files to the git repository.
+# Make sure that you are using the same autoconf version that is
+# installed on GitHub Actions see `.github/workflows/ci.yml`
+# and search for `autoconf`. Otherwise, our codecheck job
+# on GitHub Actions will complain.
 
 # we require a recent version
 # notice that autoconf is not necessary on user's machine, but only
 # if one has to update configure.ac
-AC_PREREQ([2.68])
+AC_PREREQ([2.69])
 AC_INIT([PLUMED], [2])
 
 ##################################################################
@@ -128,32 +132,55 @@ AC_DEFUN([PLUMED_CHECK_CXX_PACKAGE], [
     else
       testlibs=""
     fi
-    # check if multiple libraries are required
-    multiple=no
-    if test "$5" = "true"; then
-      multiple=yes
-    fi
     save_LIBS="$LIBS"
-    for testlib in "" $testlibs
-    do
-      if test -n "$testlib" ; then
-        AC_MSG_CHECKING([$1 with -l$testlib])
-        LIBS="-l$testlib $LIBS"
-      else
-        AC_MSG_CHECKING([$1 without extra libs])
-      fi
-      AC_LINK_IFELSE([AC_LANG_SOURCE([$2])],
+    
+    # check if multiple libraries are required simultaneously
+    multiple="no"
+    if test "$5" = "true"; then
+      multiple="yes"
+      all_LIBS=""
+      for testlib in $testlibs;
+      do
+        all_LIBS="$all_LIBS -l$testlib"
+      done
+      testlibs=" " # to check only without libraries, and later with all together
+    fi
+
+    # check without libraries
+    AC_MSG_CHECKING([$1 without extra libs])
+    AC_LINK_IFELSE([AC_LANG_SOURCE([$2])],
           [found=ok]
           [AC_MSG_RESULT([yes])],
           [AC_MSG_RESULT([no])]
       )
-      if test $found = ok ; then
-        break
+
+    if test "$found" = "ko" ; then
+      if test "$multiple" = "yes" ; then
+        AC_MSG_CHECKING([$1 with $all_LIBS])
+        LIBS="$all_LIBS $LIBS"
+        AC_LINK_IFELSE([AC_LANG_SOURCE([$2])],
+              [found=ok]
+              [AC_MSG_RESULT([yes])],
+              [AC_MSG_RESULT([no])]
+          )
+      else 
+        for testlib in $testlibs 
+        do
+          AC_MSG_CHECKING([$1 with -l$testlib])
+          LIBS="-l$testlib $LIBS"
+          AC_LINK_IFELSE([AC_LANG_SOURCE([$2])],
+                [found=ok]
+                [AC_MSG_RESULT([yes])],
+                [AC_MSG_RESULT([no])]
+          )
+          if test $found = ok ; then
+            break
+          fi
+          LIBS="$save_LIBS"
+        done
       fi
-      if test "$multiple" = "no"; then # reset LIBS to initial one, otherwise add new libraries
-        LIBS="$save_LIBS"
-      fi
-    done
+    fi
+
     if test $found = ok ; then
       AC_DEFINE([$3])
       $3=yes
@@ -262,6 +289,7 @@ PLUMED_CONFIG_ENABLE([fussy],[fussy warnings],[no])
 PLUMED_CONFIG_ENABLE([debug-glibcxx],[enable boundary check],[no])
 PLUMED_CONFIG_ENABLE([shared],[shared libs],[yes])
 PLUMED_CONFIG_ENABLE([dependency-tracking],[dependency tracking],[yes])
+PLUMED_CONFIG_ENABLE([no-gnu-unique],[a flag to avoid gnu unique symbols],[yes])
 PLUMED_CONFIG_ENABLE([rpath],[store rpath],[no])
 PLUMED_CONFIG_ENABLE([absolute-soname],[store absolute soname (Linux only - this is the default behavior on OSX). Only enable for testing!],[no])
 PLUMED_CONFIG_ENABLE([absolute-install-name],[store absolute relative (OSX only - disable to have a behavior similar to Linux). Only disable for testing!],[yes])
@@ -496,7 +524,10 @@ else
 fi
 
 
-
+if test "$no_gnu_unique" = true
+then
+  PLUMED_CHECK_CXXFLAG([-fno-gnu-unique])
+fi
 
 #### Compulsory libraries ####
 # some of them might be made optional if we find that are not available in some system
@@ -856,18 +887,14 @@ if test $python = true  ; then
   if test -n "$PYTHON_BIN"
   then
     AC_MSG_NOTICE([Python executable is $PYTHON_BIN])
-    AC_MSG_CHECKING([support for required python modules (python3, setuptools, cython, subprocess, os, shutil)])
+    AC_MSG_CHECKING([support for required python modules (python3, setuptools, cython)])
 testimport="
 from setuptools import setup
 from setuptools import Extension
-import subprocess
-import os
-import os.path
-import sys
-from shutil import copyfile
 from Cython.Build import cythonize
+import sys
 if sys.version_info < (3,):
-    raise ImportError('PLUMED 2.6 only supports Python 3')
+    raise ImportError('PLUMED>= 2.6 only supports Python 3')
 "
     if echo "$testimport" | "$PYTHON_BIN" 1>/dev/null 2>/dev/null;  then
        AC_MSG_RESULT([yes])
@@ -884,9 +911,11 @@ fi
 
 if test "$af_ocl" = true ; then
   PLUMED_CHECK_PACKAGE([arrayfire.h],[af_is_double],[__PLUMED_HAS_ARRAYFIRE],[afopencl])
+  PLUMED_CHECK_PACKAGE([arrayfire.h],[af_is_double],[__PLUMED_HAS_ARRAYFIRE_OCL],[afopencl])
 fi
 if test "$af_cuda" = true ; then
   PLUMED_CHECK_PACKAGE([arrayfire.h],[af_is_double],[__PLUMED_HAS_ARRAYFIRE],[afcuda])
+  PLUMED_CHECK_PACKAGE([arrayfire.h],[af_is_double],[__PLUMED_HAS_ARRAYFIRE_CUDA],[afcuda])
 fi
 if test "$af_cpu" = true ; then
   PLUMED_CHECK_PACKAGE([arrayfire.h],[af_is_double],[__PLUMED_HAS_ARRAYFIRE],[afcpu])
