@@ -10,27 +10,21 @@ namespace afed {
 //+PLUMEDOC COLVAR AFED
 /*
 AFDE \cite Spiwok2022 is an abbreviation of AlphaFold expected difference. It is a collective variable whose value
-captures the likeliness that the internal coordinates of a given protein take their current values
+captures the likeliness that distances of alpha carbon pairs of the protein take their current values
 with respect to the distribution predicted by AlphaFold.
 
-More precisely, for every pair of residual atoms \f$A_i, A_j\f$, AlphaFold is able to generate a probabilistic distribution \f$P_{i,j}\f$
-over possible distances between them.
-The space of possible distances between two atoms is discretized into \f$m\f$ bins centred at points \f$d_1, \ldots, d_m\f$,
-which allows us to write the distribution \f$P_{i,j}\f$ as a vector of probabilities
+More precisely, for every CA pair \f$A_i, A_j\f$ of residua \f$i,j\f$, AlphaFold generates a probabilistic distribution \f$P_{i,j}\f$
+over possible distances between them; technically, it is discretized 
+into \f$m\f$ bins centred at points \f$d_1, \ldots, d_m\f$,
+storing the distribution \f$P_{i,j}\f$ for each \f$i,j\f$ as a vector of probabilities
 \f$P_{i,j}(d_1), \ldots, P_{i,j}(d_m)\f$ over the individual bins.
-Based on this data, AFED computes the expected similarity between the current spacial configuration of the molecule
-and its random spacial arrangement sampled according to \f$P\f$.
-Namely, the colvar computes the expected number of pairs \f$(i,j)\f$ such that the bin \f$d_{i,j}\f$ corresponding to the actual
-distance between atoms \f$A_i\f$ and \f$A_j\f$ coincide with a random bin \f$d'_{i,j}\f$ drawn from the distribution \f$P_{i,j}\f$.
+Based on this data, AFED computes a probabilistic measure how AlphaFold would favor the current protein configuration
+(see \cite Spiwok2022 for more details and discussion). 
 
-Thus the value of the collective variable is almost equal to the sum \f$\sum_{1 \leq i < j \leq n}P_{i,j}(d_{i,j})\f$.
-However, since a collective variable needs to be differentiable,
-the colvar in fact computes a weighted average of probabilities of all the bins. This can be viewed as a kind of interpolation
-that shifts the positions of the bins so that the actual distance of the pair of residues always lies in the middle of its bin.
-The interpolation is computed by the property map as described in
+Since a collective variable has to be differentiable, softmax-like smoothing similar to
 the <a href="./_p_r_o_p_e_r_t_y_m_a_p.html">propery map collective variable</a>.
-
-Altogether, the output of the collective variable is the following sum
+is applied on the discretized intermediate results,
+yielding the overall formula
 \f{equation*}{
   \sum_{0 \leq i < j < n} \tilde{P}_{i,j}(d(A_i, A_j)),
 \f}
@@ -39,6 +33,8 @@ and \f$ \tilde{P}_{i,j}(d(A_i, A_j)) \f$ denotes the weighted sum
 \f{equation*}{
 \tilde{P}_{i,j}(d) = \frac{\sum_{k=1}^{m} P_{i,j}(d_k)e^{-\lambda(d - d_k)}}{\varepsilon + \sum_{k=1}^{m} e^{-\lambda(d - d_k)}}.
 \f}
+
+\f$\varepsilon\f$ is a small constant preventing numerical instability in the case all the exponential terms approach zero.
 
 \par Examples
 
