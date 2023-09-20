@@ -90,7 +90,9 @@ class AFED : public Colvar {
   using Matrix = PLMD::Matrix<double>;
   using Tensor = _3_Tensor<double>;
 
-  std::vector<AtomNumber> atoms;
+  std::vector<AtomNumber> all_atoms;
+  std::vector<std::vector<bool>> dist_pairs;
+  
   Tensor probs;
   std::vector<double> dists;
 
@@ -99,6 +101,7 @@ class AFED : public Colvar {
 
 private:
   std::pair<double, double> interpolate(const std::vector<double>& probs, double dist);
+  std::vector<size_t> find_indices(const std::vector<AtomNumber> &) const;
 
 public:
   explicit AFED(const ActionOptions&);
@@ -118,7 +121,12 @@ AFED::AFED(const ActionOptions&ao)
 {
   addValueWithDerivatives(); setNotPeriodic();
 
-  parseAtomList("ATOMS", atoms);
+  parseAtomList("ATOMS", all_atoms);
+
+  auto size = all_atoms.size();
+  dist_pairs.resize(size);
+  for (auto &r: dist_pairs) r.assign(size,false);
+
   parseVector("DISTANCES", dists);
   for (double d : dists) {
     if (d <= 0) error("All distances should be positive.");
@@ -130,31 +138,77 @@ AFED::AFED(const ActionOptions&ao)
   if (epsilon < 0) error("EPSILON should be non-negative.");
   if (epsilon < 0) error("LAMBDA should be non-negative.");
 
-  probs = Tensor(atoms.size(), atoms.size(), dists.size());
-  std::vector<double> prob_vector(atoms.size() * atoms.size());
+  probs = Tensor(all_atoms.size(), all_atoms.size(), dists.size());
+  std::vector<double> prob_vector(all_atoms.size() * all_atoms.size());
 
   for (size_t d = 0; d < dists.size(); ++d) {
     parseNumberedVector("PROB_MATRIX", d, prob_vector);
-    if (prob_vector.size() != atoms.size() * atoms.size()) {
+    if (prob_vector.size() != all_atoms.size() * all_atoms.size()) {
       error("The matrix PROB_MATRIX" + std::to_string(d) + " has invalid size.");
     }
 
     /** Fill the probability matrix of a particular bin. */
-    for (size_t i = 0; i < atoms.size(); ++i) {
-      for (size_t j = 0; j < atoms.size(); ++j) {
-        probs[i][j][d] = prob_vector[i * atoms.size() + j];
+    for (size_t i = 0; i < all_atoms.size(); ++i) {
+      for (size_t j = 0; j < all_atoms.size(); ++j) {
+        probs[i][j][d] = prob_vector[i * all_atoms.size() + j];
       }
     }
 
     /** Check whether the matrix is symmetric */
-    for (size_t i = 0; i < atoms.size(); ++i) {
-      for (size_t j = 0; j < atoms.size(); ++j) {
+    for (size_t i = 0; i < all_atoms.size(); ++i) {
+      for (size_t j = 0; j < all_atoms.size(); ++j) {
         if (probs[i][j][d] != probs[j][i][d]) error("The matrix PROB_MATRIX" + std::to_string(d) + " is not symmetric.");
       }
     }
   }
 
-  requestAtoms(atoms);
+  std::vector<AtomNumber> atoms1, atoms2, group, groupa, groupb;
+  parseAtomList("ATOMS1",atoms1);
+  parseAtomList("ATOMS2",atoms2);
+  parseAtomList("GROUP",group);
+  parseAtomList("GROUPA",groupa);
+  parseAtomList("GROUPB",groupb);
+
+
+  if (atoms1.size() != atoms2.size()) error("ATOMS1 and ATOMS2 must be the same length");
+  if (atoms1.size() > 0) {
+    log.printf("AFED: using ATOMS1/2\n");
+    if (group.size() > 0 || groupa.size() > 0 || groupb.size() > 0) error("ATOMS1/2 is mutually exclusive with GROUP/A/B");
+    auto idx1 = find_indices(atoms1), idx2 = find_indices(atoms2);
+
+    for (size_t i=0; i<idx1.size(); i++) {
+      if (idx1[i] == idx2[i]) error("Single atom can't make a pair");
+      dist_pairs[idx1[i]][idx2[i]] = dist_pairs[idx2[i]][idx1[i]] = true;
+    }
+  }
+  else if (group.size() > 0) {
+    log.printf("AFED: using GROUP\n");
+    if (groupa.size() > 0 || groupb.size() > 0) error("GROUP is mutually exclusive with GROPUA/B");
+    if (group.size() == 1) error("GROUP must contain at least two atoms");
+
+    auto idx = find_indices(group);
+    for (size_t i=0; i<idx.size(); i++) 
+      for (size_t j=0; j<idx.size(); j++) 
+        dist_pairs[idx[i]][idx[j]] = (i != j);
+  }
+  else if (groupa.size() > 0) {
+    if (groupb.size() == 0) error("GROUPB must not be empty");
+    log.printf("AFED: using GROUPA/B\n");
+
+    auto idxa = find_indices(groupa), idxb=find_indices(groupb);
+    for (size_t i=0; i<idxa.size(); i++)
+      for (size_t j=0; j<idxb.size(); j++)
+        if (idxa[i] != idxb[j]) dist_pairs[idxa[i]][idxb[j]] = dist_pairs[idxb[j]][idxa[i]] = true;
+
+  }
+  else {
+    log.printf("AFED: using default all-to-all ATOMS\n");
+    for (size_t i=0; i<size; i++) 
+      for (size_t j=0; j<size; j++)
+        dist_pairs[i][j] = (i != j);
+  }
+
+  requestAtoms(all_atoms);
 
   checkRead();
 }
@@ -162,11 +216,28 @@ AFED::AFED(const ActionOptions&ao)
 void AFED::registerKeywords( Keywords& keys ) {
   Colvar::registerKeywords( keys );
 
-  keys.add("atoms","ATOMS","A list of residua of the molecule");
+  keys.add("atoms","ATOMS","List of atoms (CA typically) PROB_MATRIX refers to");
   keys.add("compulsory", "DISTANCES", "A list of centres of the distance bins");
   keys.add("numbered", "PROB_MATRIX", "A flattened matrix of probabilities for every bin described in DISTANCES. `PROB_MATRIXk` corresponds to the k-th bin");
   keys.add("optional", "LAMBDA", "A smoothness parameter of the property map. The default value is 1");
   keys.add("optional", "EPSILON", "A small positive constant ensuring the numerical stability of division. The default value is 1e-8.");
+  keys.add("atoms", "ATOMS1", "Explicitely enumerated atom pairs, left atoms");
+  keys.add("atoms", "ATOMS2", "Explicitely enumerated atom pairs, right atoms");
+  keys.add("atoms", "GROUP", "Atoms to construct any-any pairs");
+  keys.add("atoms", "GROUPA", "Atoms to construct pairs, left side");
+  keys.add("atoms", "GROUPB", "Atoms to construct pairs, right side");
+}
+
+std::vector<size_t> AFED::find_indices(const std::vector<AtomNumber> &atoms) const
+{
+  std::vector<size_t> r;
+  for (auto a: atoms)
+    for (size_t i=0; i<all_atoms.size(); i++) 
+      if (a == all_atoms[i]) {
+        r.push_back(i);
+        break;
+      }
+  return r;
 }
 
 /**
@@ -199,30 +270,30 @@ std::pair<double, double> AFED::interpolate(const std::vector<double>& probs, do
 void AFED::calculate() {
   std::vector<PLMD::Vector> positions = getPositions();
 
-  Matrix real_dists(atoms.size(), atoms.size());
-  for (size_t i = 0; i < atoms.size(); ++i) {
-    for (size_t j = 0; j < atoms.size(); ++j) {
-      real_dists(i, j) = real_dists(j, i) = delta(positions[i], positions[j]).modulo();
-    }
-  }
+  auto size = all_atoms.size();
 
-  Matrix gradient(atoms.size(), atoms.size());
+  Matrix real_dists(size, size);
+  for (size_t i = 0; i < size; ++i)
+    for (size_t j = 0; j < i; ++j)
+      if (dist_pairs[i][j]) 
+        real_dists(i, j) = real_dists(j, i) = delta(positions[i], positions[j]).modulo();
+
+  Matrix gradient(size, size);
 
   double prob_sum = 0;
-  for(size_t i = 0; i < atoms.size(); ++i) {
-    for(size_t j = i + 1; j < atoms.size(); ++j) {
-      auto r = interpolate(probs[i][j], real_dists(i, j));
-      prob_sum += r.first;
-      gradient(i, j) = gradient(j, i) = r.second;
-    }
-  }
+  for(size_t i = 0; i < size; ++i)
+    for(size_t j = 0; j < i; ++j)
+      if (dist_pairs[i][j]) {
+        auto r = interpolate(probs[i][j], real_dists(i, j));
+        prob_sum += r.first;
+        gradient(i, j) = gradient(j, i) = r.second;
+      }
 
-  for ( size_t i = 0; i < atoms.size(); ++i) {
+  for ( size_t i = 0; i < size; ++i) {
     Vector derivatives;
-    for ( size_t j = 0; j < atoms.size(); ++j) {
-      if (i == j) continue;
-      derivatives += delta(positions[j], positions[i]) * (gradient(i, j) / real_dists(i, j));
-    }
+    for ( size_t j = 0; j < size; ++j) 
+      if (dist_pairs[i][j])
+        derivatives += delta(positions[j], positions[i]) * (gradient(i, j) / real_dists(i, j));
 
     setAtomsDerivatives(i, derivatives);
   }
