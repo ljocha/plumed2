@@ -22,7 +22,7 @@ Based on this data, AFED computes a probabilistic measure how AlphaFold would fa
 (see \cite Spiwok2022 for more details and discussion). 
 
 Since a collective variable has to be differentiable, softmax-like smoothing similar to
-the <a href="./_p_r_o_p_e_r_t_y_m_a_p.html">propery map collective variable</a>.
+the <a href="./_p_r_o_p_e_r_t_y_m_a_p.html">PROPERTYMAP</a> collective variable.
 is applied on the discretized intermediate results,
 yielding the overall formula
 \f{equation*}{
@@ -65,6 +65,9 @@ that the distances between atoms \f$A_i\f$ and \f$A_j\f$ lie in the bins centere
 \f$0.110\f$,\f$0.111\f$, and \f$0.112\f$ respectively. Note that these numbers should sum up to one
 except for the diagonal entries, which should be always zero.
 
+By default, all-to-all ATOMS distances are considered in the equation above. 
+This can be restricted further to enumerated atom pairs only with ATOMS1, ATOMS2 keywords, or groupwise pairs with GROUP, GROUPA, GROUPB, similarly to 
+<a href="./_d_i_s_t_a_n_c_e_s.html">DISTANCES</a> collective variable.
 
 */
 //+ENDPLUMEDOC
