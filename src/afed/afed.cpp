@@ -9,7 +9,7 @@ namespace afed {
 
 //+PLUMEDOC COLVAR AFED
 /*
-AFDE \cite Spiwok2022 is an abbreviation of AlphaFold expected difference. It is a collective variable whose value
+AFDE [Spiwok2022] is an abbreviation of AlphaFold expected difference. It is a collective variable whose value
 captures the likeliness that distances of alpha carbon pairs of the protein take their current values
 with respect to the distribution predicted by AlphaFold.
 
@@ -271,6 +271,7 @@ std::pair<double, double> AFED::interpolate(const std::vector<double>& probs, do
 
 
 void AFED::calculate() {
+  makeWhole();
   std::vector<PLMD::Vector> positions = getPositions();
 
   auto size = all_atoms.size();
