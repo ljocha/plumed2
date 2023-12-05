@@ -271,7 +271,6 @@ std::pair<double, double> AFED::interpolate(const std::vector<double>& probs, do
 
 
 void AFED::calculate() {
-  makeWhole();
   std::vector<PLMD::Vector> positions = getPositions();
 
   auto size = all_atoms.size();
