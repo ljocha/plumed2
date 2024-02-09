@@ -3,13 +3,15 @@
 #include "tools/Matrix.h"
 #include "tools/Vector.h"
 
+#include <fstream>
+
 namespace PLMD {
 namespace colvar {
 namespace afed {
 
 //+PLUMEDOC COLVAR AFED
 /*
-AFDE \cite Spiwok2022 is an abbreviation of AlphaFold expected difference. It is a collective variable whose value
+AFED [Spiwok2022] is an abbreviation of AlphaFold expected difference. It is a collective variable whose value
 captures the likeliness that distances of alpha carbon pairs of the protein take their current values
 with respect to the distribution predicted by AlphaFold.
 
@@ -106,6 +108,9 @@ private:
   std::pair<double, double> interpolate(const std::vector<double>& probs, double dist);
   std::vector<size_t> find_indices(const std::vector<AtomNumber> &) const;
 
+  std::fstream bonz;
+  long step = 0;
+
 public:
   explicit AFED(const ActionOptions&);
 // active methods:
@@ -113,6 +118,7 @@ public:
   bool isPeriodic() { return false; }
 /// Register all the keywords for this action
   static void registerKeywords( Keywords& keys );
+  void makeWhole();
 };
 
 PLUMED_REGISTER_ACTION(AFED,"AFED")
@@ -172,16 +178,16 @@ AFED::AFED(const ActionOptions&ao)
   parseAtomList("GROUPA",groupa);
   parseAtomList("GROUPB",groupb);
 
+  auto idx = find_indices(all_atoms);
 
   if (atoms1.size() != atoms2.size()) error("ATOMS1 and ATOMS2 must be the same length");
   if (atoms1.size() > 0) {
     log.printf("AFED: using ATOMS1/2\n");
     if (group.size() > 0 || groupa.size() > 0 || groupb.size() > 0) error("ATOMS1/2 is mutually exclusive with GROUP/A/B");
-    auto idx1 = find_indices(atoms1), idx2 = find_indices(atoms2);
 
-    for (size_t i=0; i<idx1.size(); i++) {
-      if (idx1[i] == idx2[i]) error("Single atom can't make a pair");
-      dist_pairs[idx1[i]][idx2[i]] = dist_pairs[idx2[i]][idx1[i]] = true;
+    for (size_t i=0; i<atoms1.size(); i++) {
+      if (atoms1[i] == atoms2[i]) error("Single atom can't make a pair");
+      dist_pairs[idx[atoms1[i].index()]][idx[atoms2[i].index()]] = dist_pairs[idx[atoms2[i].index()]][idx[atoms1[i].index()]] = true;
     }
   }
   else if (group.size() > 0) {
@@ -189,19 +195,17 @@ AFED::AFED(const ActionOptions&ao)
     if (groupa.size() > 0 || groupb.size() > 0) error("GROUP is mutually exclusive with GROPUA/B");
     if (group.size() == 1) error("GROUP must contain at least two atoms");
 
-    auto idx = find_indices(group);
-    for (size_t i=0; i<idx.size(); i++) 
-      for (size_t j=0; j<idx.size(); j++) 
-        dist_pairs[idx[i]][idx[j]] = (i != j);
+    for (size_t i=0; i<group.size(); i++) 
+      for (size_t j=0; j<group.size(); j++) 
+        dist_pairs[idx[group[i].index()]][idx[group[j].index()]] = (i != j);
   }
   else if (groupa.size() > 0) {
     if (groupb.size() == 0) error("GROUPB must not be empty");
     log.printf("AFED: using GROUPA/B\n");
 
-    auto idxa = find_indices(groupa), idxb=find_indices(groupb);
-    for (size_t i=0; i<idxa.size(); i++)
-      for (size_t j=0; j<idxb.size(); j++)
-        if (idxa[i] != idxb[j]) dist_pairs[idxa[i]][idxb[j]] = dist_pairs[idxb[j]][idxa[i]] = true;
+    for (size_t i=0; i<groupa.size(); i++)
+      for (size_t j=0; j<groupb.size(); j++)
+        if (groupa[i] != groupb[j]) dist_pairs[idx[groupa[i].index()]][idx[groupb[j].index()]] = dist_pairs[idx[groupb[j].index()]][idx[groupa[i].index()]] = true;
 
   }
   else {
@@ -214,6 +218,7 @@ AFED::AFED(const ActionOptions&ao)
   requestAtoms(all_atoms);
 
   checkRead();
+  bonz.open("bonz.xyz",std::fstream::out);
 }
 
 void AFED::registerKeywords( Keywords& keys ) {
@@ -234,12 +239,12 @@ void AFED::registerKeywords( Keywords& keys ) {
 std::vector<size_t> AFED::find_indices(const std::vector<AtomNumber> &atoms) const
 {
   std::vector<size_t> r;
-  for (auto a: atoms)
-    for (size_t i=0; i<all_atoms.size(); i++) 
-      if (a == all_atoms[i]) {
-        r.push_back(i);
-        break;
-      }
+  size_t i = 0;
+  for (auto &a: atoms) {
+    if (r.size() < a.index()) r.resize(a.index()+1);
+    r[a.index()] = i++;
+  }
+    
   return r;
 }
 
@@ -269,17 +274,50 @@ std::pair<double, double> AFED::interpolate(const std::vector<double>& probs, do
   return { weighted_sum / sum, (d_weighted_sum * sum - weighted_sum * d_sum) / (sum * sum) };
 }
 
+void AFED::makeWhole() {
+  auto positions = getPositions();
+  long crit = 599;
+  if (step == crit) log.printf("pbcdump: ");
+  for(unsigned j=0; j<positions.size()-1; ++j) {
+    const Vector & first (positions[j]);
+    Vector & second (positions[j+1]);
+    auto od = delta(first,second);
+    auto d = pbcDistance(first,second);
+    second=first+d;
+    if (step == crit) log.printf("%f %f %f ",od[0],od[1],od[2]);
+  }
+  if (step == crit) log.printf("\n");
+}
 
 void AFED::calculate() {
+//  makeWhole();
   std::vector<PLMD::Vector> positions = getPositions();
 
+/*
+// debug
+  for (auto p: positions) {
+    bonz << "X " << p[0] << " " << p[1] << " " << p[2] << std::endl;
+  }
+
+//   setBoxDerivativesNoPbc();
+  setValue(0);
+  return;
+// end debug
+*/
+
   auto size = all_atoms.size();
+  bool first = true;
 
   Matrix real_dists(size, size);
   for (size_t i = 0; i < size; ++i)
     for (size_t j = 0; j < i; ++j)
-      if (dist_pairs[i][j]) 
+      if (dist_pairs[i][j]) {
         real_dists(i, j) = real_dists(j, i) = delta(positions[i], positions[j]).modulo();
+        if (first) {
+//          log.printf("good dist(%lu, %lu) = %f\n",i,j,real_dists(i,j));
+          first = false;
+        }
+      }
 
   Matrix gradient(size, size);
 
@@ -292,6 +330,21 @@ void AFED::calculate() {
         gradient(i, j) = gradient(j, i) = r.second;
       }
 
+// debug
+  if (step == 0 || prob_sum < 1e-4) {
+    log.printf("step %lu\n",step);
+    for (size_t i = 0; i < size; ++i)
+      for (size_t j = 0; j < i; ++j)
+        if (dist_pairs[i][j]) {
+//          real_dists(i, j) = real_dists(j, i) = delta(positions[i], positions[j]).modulo();
+          log.printf("dist(%lu,%lu) = %f\n",i,j,real_dists(i,j));
+	}
+  
+//    if (step > 0) abort();
+  }
+  step++;
+// end debug
+
   for ( size_t i = 0; i < size; ++i) {
     Vector derivatives;
     for ( size_t j = 0; j < size; ++j) 
@@ -302,6 +355,8 @@ void AFED::calculate() {
   }
   setBoxDerivativesNoPbc();
   setValue(prob_sum);
+
+
 }
 
 } // end of namespace afed
