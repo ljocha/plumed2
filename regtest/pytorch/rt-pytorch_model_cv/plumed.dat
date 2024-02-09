@@ -1,0 +1,13 @@
+# vim:ft=plumed
+
+# vim:ft=plumed
+
+#load model computing y=dist(A5, A15)
+model: PYTORCH_MODEL_CV FILE=torch_model.pt ATOMS=5,15
+
+#output derivatives
+DUMPDERIVATIVES ARG=model.* STRIDE=5 FILE=DERIVATIVES FMT=%15.4f
+
+#print colvar
+PRINT FMT=%g STRIDE=5 FILE=COLVAR ARG=model.*
+ENDPLUMED
