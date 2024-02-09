@@ -3,8 +3,6 @@
 #include "tools/Matrix.h"
 #include "tools/Vector.h"
 
-#include <fstream>
-
 namespace PLMD {
 namespace colvar {
 namespace afed {
@@ -108,9 +106,6 @@ private:
   std::pair<double, double> interpolate(const std::vector<double>& probs, double dist);
   std::vector<size_t> find_indices(const std::vector<AtomNumber> &) const;
 
-  std::fstream bonz;
-  long step = 0;
-
 public:
   explicit AFED(const ActionOptions&);
 // active methods:
@@ -118,7 +113,6 @@ public:
   bool isPeriodic() { return false; }
 /// Register all the keywords for this action
   static void registerKeywords( Keywords& keys );
-  void makeWhole();
 };
 
 PLUMED_REGISTER_ACTION(AFED,"AFED")
@@ -218,7 +212,6 @@ AFED::AFED(const ActionOptions&ao)
   requestAtoms(all_atoms);
 
   checkRead();
-  bonz.open("bonz.xyz",std::fstream::out);
 }
 
 void AFED::registerKeywords( Keywords& keys ) {
@@ -274,36 +267,8 @@ std::pair<double, double> AFED::interpolate(const std::vector<double>& probs, do
   return { weighted_sum / sum, (d_weighted_sum * sum - weighted_sum * d_sum) / (sum * sum) };
 }
 
-void AFED::makeWhole() {
-  auto positions = getPositions();
-  long crit = 599;
-  if (step == crit) log.printf("pbcdump: ");
-  for(unsigned j=0; j<positions.size()-1; ++j) {
-    const Vector & first (positions[j]);
-    Vector & second (positions[j+1]);
-    auto od = delta(first,second);
-    auto d = pbcDistance(first,second);
-    second=first+d;
-    if (step == crit) log.printf("%f %f %f ",od[0],od[1],od[2]);
-  }
-  if (step == crit) log.printf("\n");
-}
-
 void AFED::calculate() {
-//  makeWhole();
   std::vector<PLMD::Vector> positions = getPositions();
-
-/*
-// debug
-  for (auto p: positions) {
-    bonz << "X " << p[0] << " " << p[1] << " " << p[2] << std::endl;
-  }
-
-//   setBoxDerivativesNoPbc();
-  setValue(0);
-  return;
-// end debug
-*/
 
   auto size = all_atoms.size();
   bool first = true;
@@ -314,7 +279,6 @@ void AFED::calculate() {
       if (dist_pairs[i][j]) {
         real_dists(i, j) = real_dists(j, i) = delta(positions[i], positions[j]).modulo();
         if (first) {
-//          log.printf("good dist(%lu, %lu) = %f\n",i,j,real_dists(i,j));
           first = false;
         }
       }
@@ -330,21 +294,6 @@ void AFED::calculate() {
         gradient(i, j) = gradient(j, i) = r.second;
       }
 
-// debug
-  if (step == 0 || prob_sum < 1e-4) {
-    log.printf("step %lu\n",step);
-    for (size_t i = 0; i < size; ++i)
-      for (size_t j = 0; j < i; ++j)
-        if (dist_pairs[i][j]) {
-//          real_dists(i, j) = real_dists(j, i) = delta(positions[i], positions[j]).modulo();
-          log.printf("dist(%lu,%lu) = %f\n",i,j,real_dists(i,j));
-	}
-  
-//    if (step > 0) abort();
-  }
-  step++;
-// end debug
-
   for ( size_t i = 0; i < size; ++i) {
     Vector derivatives;
     for ( size_t j = 0; j < size; ++j) 
@@ -355,8 +304,6 @@ void AFED::calculate() {
   }
   setBoxDerivativesNoPbc();
   setValue(prob_sum);
-
-
 }
 
 } // end of namespace afed
