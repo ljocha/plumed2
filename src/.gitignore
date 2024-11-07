@@ -11,18 +11,23 @@
 !/bias
 !/blas
 !/cltools
+!/clusters
 !/colvar
 !/config
+!/contour
 !/core
-!/crystallization
+!/crystdistrib
 !/dimred
 !/drr
 !/eds
+!/envsim
+!/fourier
 !/function
 !/generic
 !/gridtools
 !/imd
 !/isdb
+!/landmarks
 !/lapack
 !/lepton
 !/logmfd
@@ -31,6 +36,7 @@
 !/maketools
 !/mapping
 !/manyrestraints
+!/matrixtools
 !/maze
 !/molfile
 !/multicolvar
@@ -38,13 +44,17 @@
 !/python
 !/pamm
 !/piv
-!/reference
+!/refdist
 !/secondarystructure
 !/setup
+!/sprint
+!/symfunc
+!/small_vector
 !/tools
+!/valtools
 !/vatom
 !/ves
-!/vesselbase
+!/volumes
 !/wrapper
 !/header.sh
 !/release.sh
@@ -56,6 +66,9 @@
 !/s2cm
 !/pytorch
 !/membranefusion
+!/wham
+!/metatensor
+!/sizeshape
 
 # And just ignore these files
 *.xxd

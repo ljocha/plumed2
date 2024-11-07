@@ -35,8 +35,14 @@ The restraining potential starts acting on the system when the value of the CV i
 minus an offset \f$o_i\f$ (OFFSET).
 The expression for the bias due to the wall is given by:
 
+for UPPER_WALLS:
 \f$
   \sum_i {k_i}((x_i-a_i+o_i)/s_i)^e_i
+\f$
+
+for LOWER_WALLS:
+\f$
+  \sum_i {k_i}|(x_i-a_i-o_i)/s_i|^e_i
 \f$
 
 \f$k_i\f$ (KAPPA) is an energy constant in internal unit of the code, \f$s_i\f$ (EPS) a rescaling factor and
@@ -60,6 +66,16 @@ PRINT ARG=uwall.bias,lwall.bias
 */
 //+ENDPLUMEDOC
 
+//+PLUMEDOC BIAS UPPER_WALLS_SCALAR
+/*
+Defines a wall for the value of one or more collective variables,
+ which limits the region of the phase space accessible during the simulation.
+
+\par Examples
+
+*/
+//+ENDPLUMEDOC
+
 class UWalls : public Bias {
   std::vector<double> at;
   std::vector<double> kappa;
@@ -72,11 +88,11 @@ public:
   static void registerKeywords(Keywords& keys);
 };
 
-PLUMED_REGISTER_ACTION(UWalls,"UPPER_WALLS")
+PLUMED_REGISTER_ACTION(UWalls,"UPPER_WALLS_SCALAR")
 
 void UWalls::registerKeywords(Keywords& keys) {
-  Bias::registerKeywords(keys);
-  keys.use("ARG");
+  Bias::registerKeywords(keys); keys.setDisplayName("UPPER_WALLS");
+  keys.use("ARG"); keys.add("hidden","NO_ACTION_LOG","suppresses printing from action on the log");
   keys.add("compulsory","AT","the positions of the wall. The a_i in the expression for a wall.");
   keys.add("compulsory","KAPPA","the force constant for the wall.  The k_i in the expression for a wall.");
   keys.add("compulsory","OFFSET","0.0","the offset for the start of the wall.  The o_i in the expression for a wall.");

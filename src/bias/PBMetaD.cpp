@@ -23,7 +23,6 @@
 #include "core/ActionRegister.h"
 #include "core/ActionSet.h"
 #include "core/PlumedMain.h"
-#include "core/Atoms.h"
 #include "core/FlexibleBin.h"
 #include "tools/Exception.h"
 #include "tools/Grid.h"
@@ -31,11 +30,9 @@
 #include "tools/OpenMP.h"
 #include "tools/Random.h"
 #include "tools/File.h"
+#include "tools/Communicator.h"
 #include <ctime>
 #include <numeric>
-#if defined(__PLUMED_HAS_GETCWD)
-#include <unistd.h>
-#endif
 
 namespace PLMD {
 namespace bias {
@@ -516,10 +513,7 @@ PBMetaD::PBMetaD(const ActionOptions& ao):
 
   parse("BIASFACTOR",biasf_);
   if( biasf_<1.0 ) error("well tempered bias factor is nonsensical");
-  double temp=0.0;
-  parse("TEMP",temp);
-  if(temp>0.0) kbt_=plumed.getAtoms().getKBoltzmann()*temp;
-  else kbt_=plumed.getAtoms().getKbT();
+  kbt_=getkBT();
   if(biasf_>1.0) {
     if(kbt_==0.0) error("Unless the MD engine passes the temperature to plumed, with well-tempered metad you must specify it using TEMP");
     welltemp_=true;
@@ -639,6 +633,7 @@ PBMetaD::PBMetaD(const ActionOptions& ao):
   parse("SELECTOR", selector_);
   if(selector_.length()>0) {
     do_select_ = true;
+    select_value_ = 0; // set defalt value or it might be not initialized if the user does not pass SELECTOR_ID
     parse("SELECTOR_ID", select_value_);
   }
 

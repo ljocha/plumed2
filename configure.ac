@@ -79,7 +79,7 @@ AC_DEFUN([PLUMED_CHECK_CFLAG], [
 ])
 
 # PLUMED_CHECK_LDFLAGS(flag)
-# use it to check if a flag is available on this compiler
+# use it to check if a flag is available for linking
 AC_DEFUN([PLUMED_CHECK_LDFLAGS], [
   save_LDFLAGS="$LDFLAGS"
   LDFLAGS="$LDFLAGS $1"
@@ -270,18 +270,21 @@ PLUMED_CONFIG_ENABLE([pdfdoc],[pdf version of the manual],[no])
 PLUMED_CONFIG_ENABLE([debug],[debugging],[no])
 PLUMED_CONFIG_ENABLE([gcov],[gcov to estimate code coverage],[no])
 AC_ARG_ENABLE([cxx],
-  AS_HELP_STRING([--enable-cxx], [11 or 14. To link libraries with headers that need this C++ level. Use --enable-cxx=none to remove -std=c++ flag]),
+  AS_HELP_STRING([--enable-cxx], [17, 20, or 23. To link libraries with headers that need this C++ level. Use --enable-cxx=none to remove -std=c++ flag]),
   [
     case "${enableval}" in
-    (11) cxx_level=11 ;;
-    (14) cxx_level=14 ;;
+    (11) cxx_level=17 ;;
+    (14) cxx_level=17 ;;
+    (17) cxx_level=17 ;;
+    (20) cxx_level=20 ;;
+    (23) cxx_level=23 ;;
     (none) cxx_level="" ;;
     (*) AC_MSG_ERROR([cxx level not supported])
     esac
     AC_MSG_NOTICE([Selected C++ level: $cxx_level])
   ],
   [
-    cxx_level="11"
+    cxx_level="17"
   ]
 )
 PLUMED_CONFIG_ENABLE([basic-warnings],[basic warnings],[yes])
@@ -305,24 +308,22 @@ PLUMED_CONFIG_ENABLE([external-blas],[search for external blas],[yes])
 PLUMED_CONFIG_ENABLE([molfile-plugins],[use molfile_plugins],[yes])
 PLUMED_CONFIG_ENABLE([external-molfile-plugins],[search for external molfile_plugins],[yes])
 PLUMED_CONFIG_ENABLE([zlib],[search for zlib],[yes])
-PLUMED_CONFIG_ENABLE([readdir-r],[search for readdir_r (threadsafe)],[no])
-PLUMED_CONFIG_ENABLE([cregex],[search for C regular expression],[yes])
 PLUMED_CONFIG_ENABLE([dlopen],[search for dlopen],[yes])
+PLUMED_CONFIG_ENABLE([dladdr],[search for dladdr],[yes])
 PLUMED_CONFIG_ENABLE([rtld_default],[search for RTLD_DEFAULT macro],[yes])
-PLUMED_CONFIG_ENABLE([chdir],[search for chdir function],[yes])
 PLUMED_CONFIG_ENABLE([subprocess],[search for functions needed to manage a subprocess],[yes])
-PLUMED_CONFIG_ENABLE([getcwd],[search for getcwd function],[yes])
-PLUMED_CONFIG_ENABLE([popen],[search for popen],[yes])
 PLUMED_CONFIG_ENABLE([execinfo],[search for execinfo],[yes])
 PLUMED_CONFIG_ENABLE([gsl],[search for gsl],[yes])
 PLUMED_CONFIG_ENABLE([boost_graph],[search for boost graph],[no])
 PLUMED_CONFIG_ENABLE([boost_serialization],[search for boost serialization],[no])
 PLUMED_CONFIG_ENABLE([fftw],[search for fftw],[yes])
 PLUMED_CONFIG_ENABLE([python],[search for python],[yes])
+PLUMED_CONFIG_ENABLE([pycv],[set up the pycv plugin],[yes])
 PLUMED_CONFIG_ENABLE([af_ocl],[search for arrayfire_ocl],[no])
 PLUMED_CONFIG_ENABLE([af_cuda],[search for arrayfire_cuda],[no])
 PLUMED_CONFIG_ENABLE([af_cpu],[search for arrayfire_cpu],[no])
 PLUMED_CONFIG_ENABLE([libtorch],[search for libtorch],[no]) #added by luigibonati
+PLUMED_CONFIG_ENABLE([metatensor],[search for metatensor],[no])
 
 AC_ARG_VAR(SOEXT,[extension of dynamic libraries (so/dylib)])
 AC_ARG_VAR(STATIC_LIBS,[variables that should be linked statically directly to MD code - configure will add here -ldl if necessary ])
@@ -330,7 +331,6 @@ AC_ARG_VAR(LDSHARED,[command for linking shared library - configure will use CXX
 AC_ARG_VAR(PYTHON_BIN,[python executable (e.g. python2.7 or /opt/local/bin/python2.7) - default: search for a python executable])
 AC_ARG_VAR(BASH_COMPLETION_DIR,[path where bash completion will be installed - default: search with pkg-config])
 AC_ARG_VAR(MPIEXEC,[command to run mpi programs in tests - default not specified, which means use PLUMED_MPIRUN env var at runtime for backward compatibility])
-
 
 # by default use -O flag
 # we override the autoconf default (-g) because in release build we do not want to
@@ -426,74 +426,31 @@ then
   PLUMED_CHECK_CXXFLAG([-Wcast-qual])
   PLUMED_CHECK_CXXFLAG([-Wcast-align])
   PLUMED_CHECK_CXXFLAG([-Wconversion])
-  PLUMED_CHECK_CXXFLAG([-Wredundant-delcs])
+  PLUMED_CHECK_CXXFLAG([-Wredundant-decls])
   PLUMED_CHECK_CXXFLAG([-Wvariadic-macros])
   PLUMED_CHECK_CXXFLAG([-Wold-style-cast])
 fi
 
-AC_MSG_CHECKING([whether $CXX declares c++11 support])
+AC_MSG_CHECKING([whether $CXX declares c++17 support])
 AC_COMPILE_IFELSE([AC_LANG_PROGRAM([
-#if __cplusplus <= 199711L
-this_compiler_does_not_support_cxx11
+#if __cplusplus < 201703L
+this_compiler_does_not_support_cxx17
 #endif
 ])],
   [AC_MSG_RESULT([yes])];
-  support_cxx11=true,
+  support_cxx17=true,
   [AC_MSG_RESULT([no]) ;
-  support_cxx11=false])
+  support_cxx17=false])
 
-if test "$support_cxx11" = false
+if test "$support_cxx17" = false
 then
-   AC_MSG_WARN([C++11 support is required as of PLUMED 2.4])
-   AC_MSG_WARN([Your compiler appears not to support C++11])
+   AC_MSG_WARN([C++17 support is required as of PLUMED 2.10])
+   AC_MSG_WARN([Your compiler appears not to support C++17])
    AC_MSG_WARN([Please change compiler or make sure that everything works correctly])
 fi
 
-AC_MSG_CHECKING([whether C++ library supports C++11 exceptions])
-AC_COMPILE_IFELSE([AC_LANG_PROGRAM([
-#include <new>
-#include <functional>
-#include <memory>
-#include <system_error>
-#include <ios>
-#include <future>
-// capable to catch:
-void func(void) {
-  try{
-  } catch(std::bad_array_new_length &) {
-  } catch(std::bad_function_call &) {
-  } catch(std::bad_weak_ptr &) {
-  } catch(std::ios_base::failure &e) {
-    if(e.code().category()==std::generic_category()) {}
-    else if(e.code().category()==std::system_category()) {}
-    else if(e.code().category()==std::iostream_category()) {}
-    else if(e.code().category()==std::future_category()) {}
-  } catch(std::system_error &e) {
-    if(e.code().category()==std::generic_category()) {}
-    else if(e.code().category()==std::system_category()) {}
-    else if(e.code().category()==std::iostream_category()) {}
-    else if(e.code().category()==std::future_category()) {}
-  }
-// capable to throw:
-  auto a=std::bad_array_new_length();
-  auto b=std::bad_function_call();
-  auto c=std::bad_weak_ptr();
-  auto d=std::system_error(10,std::generic_category(),"msg");
-  auto e=std::system_error(10,std::system_category(),"msg");
-  auto f=std::system_error(10,std::iostream_category(),"msg");
-  auto g=std::system_error(10,std::future_category(),"msg");
-  auto h=std::ios_base::failure("msg",std::error_code(10,std::generic_category()));
-  auto i=std::ios_base::failure("msg",std::error_code(10,std::system_category()));
-  auto j=std::ios_base::failure("msg",std::error_code(10,std::iostream_category()));
-  auto k=std::ios_base::failure("msg",std::error_code(10,std::future_category()));
-}
-])],
-[
-  AC_MSG_RESULT([yes]);
-  AC_DEFINE([__PLUMED_LIBCXX11])
-],
-[AC_MSG_RESULT([no])
-])
+# We assume now that compiler supports C++11 library
+AC_DEFINE([__PLUMED_WRAPPER_LIBCXX11])
 
 AC_SUBST(disable_dependency_tracking)
 
@@ -532,8 +489,26 @@ fi
 #### Compulsory libraries ####
 # some of them might be made optional if we find that are not available in some system
 AC_MSG_NOTICE([Now we will check compulsory headers and libraries])
-AC_CHECK_HEADER([dirent.h],     [ ], [AC_MSG_ERROR([compulsory header not found])] )
-AC_CHECK_FUNC(  [readdir],      [ ], [AC_MSG_ERROR([compulsory function not found])] )
+
+PLUMED_CHECK_CXX_PACKAGE([filesystem library],[
+#include <filesystem>
+#include <iostream>
+#include <string>
+
+int main(){
+  std::filesystem::path path;
+  for (auto const& dir_entry : std::filesystem::directory_iterator{"a"}) {
+    std::cout<<std::string(dir_entry.path().filename())<<"\n";
+  }
+  return 0;
+}
+  ], [__PLUMED_CXX17_FILESYSTEM], [stdc++fs])
+
+if test "$__PLUMED_CXX17_FILESYSTEM" != yes
+then
+  AC_MSG_ERROR([C++17 filesystem library not supported, please check your compiler])
+fi
+
 
 # Then check for blas. This is a bit complicated because we want to allow
 # either the version with underscore or the one without
@@ -703,6 +678,9 @@ fi
 # to be loaded later
 AC_CHECK_LIB([dl],dlopen, [STATIC_LIBS="-ldl $STATIC_LIBS"] [LIBS="-ldl $LIBS"])
 
+
+PLUMED_CHECK_PACKAGE([dlfcn.h],[dladdr],[__PLUMED_HAS_DLADDR])
+
 mpi_found=ko
 # optional libraries follow
 if test $mpi = true ; then
@@ -756,13 +734,6 @@ if test $asmjit = true ; then
   fi
 fi
 
-
-if test $readdir_r = true ; then
-  PLUMED_CHECK_PACKAGE([dirent.h],[readdir_r],[__PLUMED_HAS_READDIR_R])
-fi
-if test $cregex = true ; then
-  PLUMED_CHECK_PACKAGE([regex.h],[regcomp],[__PLUMED_HAS_CREGEX])
-fi
 if test $dlopen = true ; then
   PLUMED_CHECK_PACKAGE([dlfcn.h],[dlopen],[__PLUMED_HAS_DLOPEN])
 fi
@@ -777,10 +748,6 @@ main ()
   return 0;
 }
   ], [__PLUMED_HAS_RTLD_DEFAULT])
-fi
-
-if test $chdir = true ; then
-  PLUMED_CHECK_PACKAGE([unistd.h],[chdir],[__PLUMED_HAS_CHDIR])
 fi
 
 if test $subprocess = true ; then
@@ -816,14 +783,6 @@ main ()
 }
 
   ], [__PLUMED_HAS_SUBPROCESS])
-fi
-
-if test $getcwd = true ; then
-  PLUMED_CHECK_PACKAGE([unistd.h],[getcwd],[__PLUMED_HAS_GETCWD])
-fi
-
-if test $popen = true ; then
-  PLUMED_CHECK_PACKAGE([cstdio],[popen],[__PLUMED_HAS_POPEN])
 fi
 
 if test $execinfo = true ; then
@@ -878,17 +837,59 @@ if test $fftw = true ; then
   PLUMED_CHECK_PACKAGE([fftw3.h],[fftw_execute],[__PLUMED_HAS_FFTW],[fftw3])
 fi
 
-if test $python = true  ; then
+# python executable: if any of CYTHON_FOUND or PLUMED_CAN_PYCV is on will store
+# the python executable
+AC_SUBST(PYTHON_BIN)
+# set if PYTHON_BIN has Cython in its environment
+AC_SUBST(CYTHON_FOUND)
+# definitions and variables related to pycv and in general embedding python
+AC_SUBST(PLUMED_CAN_PYCV)
+AC_SUBST(PYBIND11_CFLAGS)
+AC_SUBST(PYTHON_LDFLAGS)
+AC_SUBST(PYTHON_CFLAGS)
+
 # if PYTHON_BIN is defined, it is expected to be the full path to python
-# Otherwise, search from a list of names:
-  if test -z "$PYTHON_BIN" ; then
-    AC_CHECK_PROGS([PYTHON_BIN],[python])
-  fi
-  if test -n "$PYTHON_BIN"
-  then
+# Otherwise, search from a list of names:  
+if test -z "$PYTHON_BIN" ; then
+    AC_CHECK_PROGS([PYTHON_BIN],[python3])
+fi
+if test -n "$PYTHON_BIN" ; then
     AC_MSG_NOTICE([Python executable is $PYTHON_BIN])
-    AC_MSG_CHECKING([support for required python modules (python3, setuptools, cython)])
-testimport="
+  if test $pycv = true  ; then
+    AC_MSG_CHECKING([pycv: support for required python modules (python3, pybind11, numpy)])
+  testimport="
+import numpy
+import pybind11
+#no need to check for python3, if you have python2, you don't have pybind11 (and vice-versa)
+"
+    if echo "$testimport" | "$PYTHON_BIN" 1>/dev/null 2>/dev/null;  then
+       
+       pyver=$($PYTHON_BIN -c "import sysconfig;print(sysconfig.get_config_var('VERSION'))")
+       python_config=python${pyver}-config
+       
+       if ${python_config} --ldflags --embed 1>/dev/null 2>/dev/null ;then
+          AC_MSG_RESULT([yes])
+          PYBIND11_CFLAGS="$($PYTHON_BIN -m pybind11 --includes) -fvisibility=hidden"
+          PYTHON_CFLAGS=$(${python_config} --cflags --embed)
+          PYTHON_LDFLAGS=$(${python_config} --ldflags --embed)
+          #TODO: conda_fixup
+          PLUMED_CAN_PYCV=yes
+        else
+          AC_MSG_RESULT([no])
+          AC_MSG_WARN([cannot enable pycv])
+          AC_MSG_WARN(["PyCV needs python to be embeddable, please rebuild python"])
+       fi
+    else
+       AC_MSG_RESULT([no])
+       AC_MSG_WARN([cannot enable pycv])
+    fi
+  else
+    AC_MSG_WARN([cannot enable pycv])
+  fi
+
+  if test $python = true  ; then
+    AC_MSG_CHECKING([python wrapper: support for required python modules (python3, setuptools, cython)])
+    testimport="
 from setuptools import setup
 from setuptools import Extension
 from Cython.Build import cythonize
@@ -899,14 +900,19 @@ if sys.version_info < (3,):
     if echo "$testimport" | "$PYTHON_BIN" 1>/dev/null 2>/dev/null;  then
        AC_MSG_RESULT([yes])
        AC_DEFINE([__PLUMED_HAS_PYTHON])
+       CYTHON_FOUND=yes
     else
        AC_MSG_RESULT([no])
        AC_MSG_WARN([cannot enable python interface])
-       PYTHON_BIN=
     fi
   else
     AC_MSG_WARN([cannot enable python interface])
   fi
+fi
+
+if test "${PLUMED_CAN_PYCV}" != yes &&  test "${CYTHON_FOUND}" != yes; then
+  #this deactivate python bin if no package was found
+  PYTHON_BIN=
 fi
 
 if test "$af_ocl" = true ; then
@@ -921,19 +927,74 @@ if test "$af_cpu" = true ; then
   PLUMED_CHECK_PACKAGE([arrayfire.h],[af_is_double],[__PLUMED_HAS_ARRAYFIRE],[afcpu])
 fi
 
+# metatensor requires libtorch
+if test $metatensor = true ; then
+  libtorch=true;
+fi
+
 #added by luigibonati
 if test $libtorch = true ; then 
-  # enable c++14 support
-  PLUMED_CHECK_CXXFLAG([-std=c++14])
-  # test program
-  PLUMED_CHECK_CXX_PACKAGE([libtorch],[
-#include <torch/torch.h>
-#include <torch/script.h>
-int main() {
-  torch::Tensor tensor = torch::rand({2, 3});
-  return 0;
-}
+  # disable as-needed in linking libraries (both static and shared)
+  PLUMED_CHECK_LDFLAGS([-Wl,--no-as-needed])
+
+  # CUDA and CPU libtorch libs have different libraries
+  # first test CUDA program
+  PLUMED_CHECK_CXX_PACKAGE([libtorch_cuda],[
+    #include <torch/torch.h>
+    #include <torch/script.h>
+    #include <torch/cuda.h>
+    int main() {
+      std::cerr << "CUDA is available: " << torch::cuda::is_available() << std::endl;
+      torch::Tensor tensor = torch::rand({2, 3});
+      torch::Device device = torch::kCPU;
+      device = torch::kCUDA;
+      tensor.to(device);
+      return 0;
+    }
+  ], [__PLUMED_HAS_LIBTORCH], [ torch_cpu c10 c10_cuda torch_cuda ], [true])
+
+  # if not found test CPU version
+  if test "$__PLUMED_HAS_LIBTORCH" = no; then
+  # AC_MSG_NOTICE([CUDA-enabled libtorch not found (or devices not available), trying with CPU version.])
+    PLUMED_CHECK_CXX_PACKAGE([libtorch_cpu],[
+    #include <torch/torch.h>
+    #include <torch/script.h>
+    int main() {
+      torch::Tensor tensor = torch::rand({2, 3});
+      
+      return 0;
+    }
   ], [__PLUMED_HAS_LIBTORCH], [ torch_cpu c10 ], [true])
+  fi
+fi
+
+if test $metatensor = true ; then
+  # find metatensor and metatensor_torch
+  PLUMED_CHECK_CXX_PACKAGE([metatensor],[
+    // torch header creates a lot a pedantic warnings, which we can't do anything about
+    // we disable them to make finding the relevant part in the config.log easier
+    #pragma GCC diagnostic push
+    #pragma GCC diagnostic ignored "-Wpedantic"
+    #pragma GCC diagnostic ignored "-Wunused-parameter"
+    #pragma GCC diagnostic ignored "-Wfloat-equal"
+    #pragma GCC diagnostic ignored "-Wfloat-conversion"
+    #pragma GCC diagnostic ignored "-Wimplicit-float-conversion"
+    #pragma GCC diagnostic ignored "-Wimplicit-int-conversion"
+    #pragma GCC diagnostic ignored "-Wshorten-64-to-32"
+    #pragma GCC diagnostic ignored "-Wsign-conversion"
+    #pragma GCC diagnostic ignored "-Wold-style-cast"
+    #include <torch/torch.h>
+    #include <torch/script.h>
+    #pragma GCC diagnostic pop
+    #include <metatensor/torch.hpp>
+    #if METATENSOR_TORCH_VERSION_MAJOR != 0 || METATENSOR_TORCH_VERSION_MINOR != 5
+    #error "this code is only compatible with metatensor-torch >=0.5.1,<0.6"
+    #endif
+    int main() {
+      metatensor_torch::version();
+      return 0;
+    }
+  ], [__PLUMED_HAS_METATENSOR], [metatensor metatensor_torch], [true])
 fi
 
 # in non-debug mode, add -DNDEBUG
@@ -962,8 +1023,6 @@ AC_SUBST(LDSHARED)
 AC_SUBST(LD_MAIN_RUNPATH)
 # these are libraries that should be linked also to MD engines
 AC_SUBST(STATIC_LIBS)
-# python executable
-AC_SUBST(PYTHON_BIN)
 
 AC_SUBST(MPIEXEC)
 
@@ -1425,6 +1484,8 @@ AC_ARG_PROGRAM
 program_transform_name_sh=$(echo "${program_transform_name}" | sed 's:\$\$:$:g')
 program_name=$(echo plumed | sed "$program_transform_name_sh")
 AC_SUBST(program_name)
+AC_DEFINE_UNQUOTED([__PLUMED_PROGRAM_NAME],["$program_name"])
+AC_DEFINE_UNQUOTED([__PLUMED_SOEXT],["$SOEXT"])
 
 if test "$(echo "$program_name" | tr '[A-Z]' '[a-z]')" != "$(echo "$program_name" | tr '[A-Z]' '[a-z]' | sed 's/wrapper$//')" ; then
   AC_MSG_ERROR([$program_name is not a valid program name (should not terminate with Wrapper)])

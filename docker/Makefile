@@ -1,17 +1,20 @@
 
-.PHONY: ubuntu plumed2.tgz clean centos7 fedora38 rocky8
+.PHONY: ubuntu plumed2.tgz clean fedora39 fedora39-pycv rocky8 rocky8-pycv 
 
 ubuntu: plumed2.tgz
-	docker build -t plumed .
+	docker build --shm-size 1024M -t plumed --progress=plain .
 
-centos7: plumed2.tgz
-	docker build -t plumed -f centos7 .
+fedora39: plumed2.tgz
+	docker build --shm-size 1024M -t plumed:fedora39 --progress=plain -f fedora39 .
+fedora39-pycv: plumed2.tgz
+	docker build --shm-size 1024M -t plumed:fedora39-pycv --progress=plain -f fedora39-pycv .
 
-fedora38: plumed2.tgz
-	docker build -t plumed -f fedora38 .
 
 rocky8: plumed2.tgz
-	docker build -t plumed -f rocky8 .
+	docker build --shm-size 1024M -t plumed:rocky8 --progress=plain -f rocky8 .
+
+rocky8-pycv: plumed2.tgz
+	docker build --shm-size 1024M -t plumed:rocky8-pycv --progress=plain -f rocky8-pycv .
 
 plumed2.tgz:
 	cd ../ ; git archive HEAD -o "$(CURDIR)"/plumed2.tgz --prefix plumed2/ ; cd -
